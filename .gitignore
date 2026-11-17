@@ -11,3 +11,4 @@ releases/
 .server.env*
 private/
 *.log
+skills/

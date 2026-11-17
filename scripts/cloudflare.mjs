@@ -171,9 +171,11 @@ async function deploy() {
   const result = run(["deploy", "--config", sandbox], { capture: true });
   const candidates =
     result.stdout.match(/https:\/\/[a-z0-9.-]+\.workers\.dev\b/g) || [];
-  const playOrigin = candidates.find(
-    (value) => new URL(value).hostname.split(".")[0] === playConfig.name,
-  );
+  const playOrigin =
+    config.vars?.SANDBOX_ORIGIN ||
+    candidates.find(
+      (value) => new URL(value).hostname.split(".")[0] === playConfig.name,
+    );
   if (!playOrigin)
     throw new Error(
       "The player deployed, but its URL could not be verified. Check the Cloudflare dashboard before retrying.",

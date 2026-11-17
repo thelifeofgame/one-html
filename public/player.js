@@ -11,6 +11,7 @@ export function createPlayer({
     controller = null,
     frame = null,
     timeout = null,
+    messageHandler = null,
     phase = "idle";
   const setPhase = (value) => {
     phase = value;
@@ -22,6 +23,10 @@ export function createPlayer({
     controller = null;
     clearTimeout(timeout);
     timeout = null;
+    if (messageHandler) {
+      window.removeEventListener("message", messageHandler);
+      messageHandler = null;
+    }
     if (frame) {
       frame.removeAttribute("src");
       frame.remove();
@@ -91,6 +96,18 @@ export function createPlayer({
           },
           { once: true },
         );
+
+        messageHandler = (event) => {
+          if (run !== generation) return;
+          if (event.origin !== playOrigin && event.origin !== location.origin) return;
+          if (event.data?.type === "onehtml:error") {
+            const errorMsg = event.data.message || "An error occurred in the sandbox execution.";
+            setPhase("error");
+            onError?.(new Error(errorMsg));
+          }
+        };
+        window.addEventListener("message", messageHandler);
+
         frame.src = url.href;
         container.replaceChildren(frame);
         return true;

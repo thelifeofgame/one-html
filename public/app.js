@@ -51,7 +51,63 @@ const state = {
 };
 let activePlayer = null,
   modalEpoch = 0;
+
+function removeFullscreenExitButton() {
+  document.querySelectorAll(".fullscreen-exit-btn").forEach((btn) => btn.remove());
+}
+
+function updateFullscreenExitButton(stage) {
+  removeFullscreenExitButton();
+  if (
+    document.fullscreenElement === stage ||
+    stage?.classList.contains("player-fallback-fullscreen")
+  ) {
+    const exitBtn = document.createElement("button");
+    exitBtn.className = "fullscreen-exit-btn";
+    exitBtn.innerHTML = `${icon("close")}<span>${t("Exit Fullscreen", "退出全屏")}</span>`;
+    exitBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      exitFullscreen(stage);
+    });
+    stage.appendChild(exitBtn);
+  }
+}
+
+async function requestFullscreen(stage) {
+  if (!stage) return;
+  if (stage.requestFullscreen) {
+    try {
+      await stage.requestFullscreen();
+    } catch {
+      stage.classList.add("player-fallback-fullscreen");
+      updateFullscreenExitButton(stage);
+    }
+  } else {
+    stage.classList.add("player-fallback-fullscreen");
+    updateFullscreenExitButton(stage);
+  }
+}
+
+async function exitFullscreen(stage) {
+  if (!stage) stage = $("#player-stage");
+  if (document.fullscreenElement) {
+    try {
+      await document.exitFullscreen();
+    } catch {}
+  }
+  if (stage?.classList.contains("player-fallback-fullscreen")) {
+    stage.classList.remove("player-fallback-fullscreen");
+  }
+  removeFullscreenExitButton();
+}
+
+document.addEventListener("fullscreenchange", () => {
+  const stage = $("#player-stage");
+  if (stage) updateFullscreenExitButton(stage);
+});
+
 function releasePlayer() {
+  exitFullscreen($("#player-stage"));
   const player = activePlayer;
   activePlayer = null;
   player?.destroy();
@@ -810,15 +866,7 @@ document.addEventListener("click", async (event) => {
       }
       case "fullscreen":
         if (!$("#player")) await launch();
-        if ($("#player-stage")?.requestFullscreen)
-          await $("#player-stage").requestFullscreen();
-        else
-          toast(
-            t(
-              "Fullscreen is not supported in this browser.",
-              "当前浏览器不支持全屏。",
-            ),
-          );
+        await requestFullscreen($("#player-stage"));
         break;
       case "share":
         await navigator.clipboard.writeText(location.href);
