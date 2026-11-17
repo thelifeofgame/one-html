@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Tiny Sail · OneHTML original</title
+  ><style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #acd9d4;
+      font: 13px system-ui;
+      color: #315d56;
+    }
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      touch-action: none;
+    }
+    .hud {
+      position: fixed;
+      top: 20px;
+      left: 24px;
+      pointer-events: none;
+    }
+    .hud strong {
+      font-size: 22px;
+      letter-spacing: -1px;
+    }
+    .hud small {
+      display: block;
+      margin-top: 6px;
+      font-size: 11px;
+    }
+    .counter {
+      position: fixed;
+      right: 24px;
+      top: 24px;
+      background: #ffffffa0;
+      border-radius: 20px;
+      padding: 8px 15px;
+    }
+    .hint {
+      position: fixed;
+      bottom: 18px;
+      width: 100%;
+      text-align: center;
+      font-size: 10px;
+      pointer-events: none;
+    }</style
+  ><canvas></canvas>
+  <div class="hud">
+    <strong>tiny sail.</strong
+    ><small>A little escape on an endless blue.</small>
+  </div>
+  <div class="counter">⚑ <span id="score">0</span></div>
+  <div class="hint">← → or A / D to steer · Touch & drag to sail</div>
+  <script>
+    // OneHTML original demo. MIT License. Copyright (c) 2026 OneHTML contributors.
+    const c = document.querySelector("canvas"),
+      g = c.getContext("2d");
+    let w,
+      h,
+      dpr,
+      angle = -Math.PI / 2,
+      x = 0,
+      y = 0,
+      score = 0,
+      last = 0,
+      target = null;
+    const keys = new Set(),
+      buoys = Array.from({ length: 18 }, () => ({
+        x: (Math.random() - 0.5) * 2000,
+        y: (Math.random() - 0.5) * 2000,
+      }));
+    function resize() {
+      dpr = Math.min(devicePixelRatio, 2);
+      w = innerWidth;
+      h = innerHeight;
+      c.width = w * dpr;
+      c.height = h * dpr;
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    addEventListener("resize", resize);
+    resize();
+    addEventListener("keydown", (e) => {
+      if (
+        ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " "].includes(e.key)
+      )
+        e.preventDefault();
+      keys.add(e.key.toLowerCase());
+    });
+    addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
+    addEventListener("blur", () => keys.clear());
+    c.addEventListener("pointerdown", (e) => {
+      target = { x: e.clientX - w / 2, y: e.clientY - h / 2 };
+      c.setPointerCapture(e.pointerId);
+    });
+    c.addEventListener("pointermove", (e) => {
+      if (e.buttons) target = { x: e.clientX - w / 2, y: e.clientY - h / 2 };
+    });
+    c.addEventListener("pointerup", () => (target = null));
+    const wake = [];
+    function frame(time) {
+      const dt = Math.min((time - last) / 1000 || 0, 0.04);
+      last = time;
+      if (keys.has("arrowleft") || keys.has("a")) angle -= dt * 2;
+      if (keys.has("arrowright") || keys.has("d")) angle += dt * 2;
+      if (target) {
+        const desired = Math.atan2(target.y, target.x);
+        angle +=
+          Math.atan2(Math.sin(desired - angle), Math.cos(desired - angle)) *
+          Math.min(1, dt * 4);
+      }
+      x += Math.cos(angle) * dt * 80;
+      y += Math.sin(angle) * dt * 80;
+      wake.push({ x, y });
+      if (wake.length > 75) wake.shift();
+      g.fillStyle = "#acd9d4";
+      g.fillRect(0, 0, w, h);
+      g.strokeStyle = "#d5ebe0";
+      g.lineWidth = 2;
+      for (let i = -8; i < 15; i++)
+        for (let j = -8; j < 15; j++) {
+          let px = i * 100 - (((x % 100) + 100) % 100) + w / 2,
+            py = j * 80 - (((y % 80) + 80) % 80) + h / 2;
+          g.beginPath();
+          g.moveTo(px, py);
+          g.quadraticCurveTo(
+            px + 12,
+            py + Math.sin(time / 1000 + i) * 3,
+            px + 25,
+            py,
+          );
+          g.stroke();
+        }
+      wake.forEach((p, i) => {
+        g.fillStyle = `rgba(238,248,225,${(i / wake.length) * 0.45})`;
+        g.beginPath();
+        g.arc(
+          p.x - x + w / 2,
+          p.y - y + h / 2,
+          2 + (1 - i / wake.length) * 8,
+          0,
+          7,
+        );
+        g.fill();
+      });
+      for (const b of buoys) {
+        if (Math.hypot(b.x - x, b.y - y) < 28) {
+          score++;
+          document.querySelector("#score").textContent = score;
+          b.x = x + (Math.random() - 0.5) * 1300;
+          b.y = y + (Math.random() - 0.5) * 1300;
+        }
+        if (Math.abs(b.x - x) > 1200) b.x = x + (Math.random() - 0.5) * 1500;
+        if (Math.abs(b.y - y) > 1200) b.y = y + (Math.random() - 0.5) * 1500;
+        let bx = b.x - x + w / 2,
+          by = b.y - y + h / 2;
+        g.fillStyle = "#f4d38b";
+        g.beginPath();
+        g.arc(bx, by, 7, 0, 7);
+        g.fill();
+        g.strokeStyle = "#f8fae6";
+        g.beginPath();
+        g.ellipse(bx, by + 7, 13, 4, 0, 0, 7);
+        g.stroke();
+      }
+      g.save();
+      g.translate(w / 2, h / 2);
+      g.rotate(angle + Math.PI / 2);
+      g.fillStyle = "#6aada8";
+      g.beginPath();
+      g.ellipse(3, 9, 17, 30, 0, 0, 7);
+      g.fill();
+      g.fillStyle = "#ad7952";
+      g.beginPath();
+      g.moveTo(-14, 15);
+      g.lineTo(0, -28);
+      g.lineTo(14, 15);
+      g.quadraticCurveTo(0, 31, -14, 15);
+      g.fill();
+      g.strokeStyle = "#765f42";
+      g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(0, -24);
+      g.lineTo(0, 18);
+      g.stroke();
+      g.fillStyle = "#fff8e5";
+      g.beginPath();
+      g.moveTo(-3, -21);
+      g.lineTo(-30, 13);
+      g.lineTo(-3, 13);
+      g.fill();
+      g.fillStyle = "#e87049";
+      g.beginPath();
+      g.moveTo(3, -15);
+      g.lineTo(25, 12);
+      g.lineTo(3, 12);
+      g.fill();
+      g.restore();
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  </script>
+</html>

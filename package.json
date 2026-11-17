@@ -1,0 +1,31 @@
+{
+  "name": "onehtml",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "dev": "node --experimental-sqlite --no-warnings scripts/dev.mjs",
+    "start": "ONEHTML_SERVER_MODE=1 node --experimental-sqlite --no-warnings scripts/dev.mjs",
+    "start:ip": "bash scripts/start-ip.sh",
+    "package:private": "node --experimental-sqlite --no-warnings scripts/package-private.mjs",
+    "test": "node --experimental-sqlite --no-warnings --test tests/*.test.mjs",
+    "check": "node --check src/worker.js && node --check public/app.js && node --check public/player.js && node --check scripts/dev.mjs && node --check scripts/cloudflare.mjs",
+    "admin": "node --experimental-sqlite --no-warnings scripts/admin.mjs",
+    "google:configure": "node scripts/configure-google.mjs",
+    "collection:build": "node scripts/build-collection.mjs",
+    "collection:import": "node --experimental-sqlite --no-warnings scripts/import-collection.mjs",
+    "cf:check": "WRANGLER_LOG_PATH=.data/wrangler.log WRANGLER_SEND_METRICS=false wrangler deploy --dry-run",
+    "cf:setup": "node scripts/cloudflare.mjs setup",
+    "cf:deploy": "node scripts/cloudflare.mjs deploy",
+    "cf:admin": "node scripts/cloudflare.mjs admin"
+  },
+  "devDependencies": {
+    "wrangler": "^4.158.0"
+  },
+  "dependencies": {
+    "jose": "6.2.17"
+  }
+}

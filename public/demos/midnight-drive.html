@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Midnight Drive · OneHTML original</title
+  ><style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #292d44;
+      font: 13px system-ui;
+      color: #f7dfc3;
+    }
+    canvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      touch-action: none;
+    }
+    .hud {
+      position: fixed;
+      top: 18px;
+      left: 22px;
+    }
+    .hud strong {
+      font-size: 21px;
+      letter-spacing: -1px;
+    }
+    .hud small {
+      display: block;
+      margin-top: 6px;
+      opacity: 0.7;
+    }
+    .hint {
+      position: fixed;
+      bottom: 17px;
+      text-align: center;
+      width: 100%;
+      font-size: 10px;
+      opacity: 0.7;
+    }
+    #restart {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      border: 1px solid #f6d3b450;
+      border-radius: 14px;
+      background: #292d44ed;
+      color: #f7dfc3;
+      padding: 25px 35px;
+      font: inherit;
+      cursor: pointer;
+      display: none;
+    }
+    #restart strong {
+      font-size: 21px;
+      display: block;
+      margin-bottom: 12px;
+    }</style
+  ><canvas></canvas>
+  <div class="hud">
+    <strong>midnight drive.</strong
+    ><small
+      ><span id="distance">0</span> m · <span id="lives">♥ ♥ ♥</span></small
+    >
+  </div>
+  <button id="restart">
+    <strong>A little pit stop.</strong>Click to drive again ↗
+  </button>
+  <div class="hint">← → or A / D to change lanes · Touch the road to steer</div>
+  <script>
+    // OneHTML original demo. MIT License. Copyright (c) 2026 OneHTML contributors.
+    const c = document.querySelector("canvas"),
+      g = c.getContext("2d");
+    let w,
+      h,
+      car = 0,
+      target = 0,
+      distance = 0,
+      lives = 3,
+      last = 0,
+      spawn = 0,
+      hit = 0,
+      stopped = false;
+    const traffic = [];
+    function resize() {
+      w = innerWidth;
+      h = innerHeight;
+      let d = Math.min(devicePixelRatio, 2);
+      c.width = w * d;
+      c.height = h * d;
+      g.setTransform(d, 0, 0, d, 0, 0);
+    }
+    addEventListener("resize", resize);
+    resize();
+    addEventListener("keydown", (e) => {
+      if (["ArrowLeft", "ArrowRight", "a", "d"].includes(e.key))
+        e.preventDefault();
+      if (["ArrowLeft", "a"].includes(e.key)) target = Math.max(-1, target - 1);
+      if (["ArrowRight", "d"].includes(e.key)) target = Math.min(1, target + 1);
+    });
+    c.onpointerdown = (e) => {
+      target = Math.max(-1, Math.min(1, Math.round((e.clientX / w - 0.5) * 4)));
+    };
+    document.querySelector("#restart").onclick = () => {
+      traffic.length = 0;
+      car = target = distance = spawn = hit = 0;
+      lives = 3;
+      stopped = false;
+      document.querySelector("#restart").style.display = "none";
+    };
+    function polygon(points, color) {
+      g.fillStyle = color;
+      g.beginPath();
+      points.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
+      g.closePath();
+      g.fill();
+    }
+    function drawCar(x, y, size, color) {
+      g.fillStyle = color;
+      g.beginPath();
+      g.roundRect(
+        x - size * 0.45,
+        y - size * 0.7,
+        size * 0.9,
+        size * 1.4,
+        size * 0.13,
+      );
+      g.fill();
+      g.fillStyle = "#343a4a";
+      g.fillRect(x - size * 0.31, y - size * 0.42, size * 0.62, size * 0.4);
+      g.fillStyle = "#ffe5bc";
+      g.fillRect(x - size * 0.34, y + size * 0.4, size * 0.2, 3);
+      g.fillRect(x + size * 0.14, y + size * 0.4, size * 0.2, 3);
+    }
+    function frame(now) {
+      let dt = Math.min((now - last) / 1000 || 0, 0.04);
+      last = now;
+      const horizon = h * 0.32,
+        bottom = h,
+        roadWidth = Math.min(w * 0.78, 620),
+        vanish = w / 2 + Math.sin(distance / 1300) * w * 0.06;
+      g.fillStyle = "#303149";
+      g.fillRect(0, 0, w, h);
+      let gradient = g.createLinearGradient(0, 0, 0, horizon);
+      gradient.addColorStop(0, "#282c46");
+      gradient.addColorStop(1, "#9c6c7e");
+      g.fillStyle = gradient;
+      g.fillRect(0, 0, w, horizon);
+      g.fillStyle = "#e6a38a";
+      g.beginPath();
+      g.arc(w * 0.73, h * 0.19, h * 0.075, 0, 7);
+      g.fill();
+      polygon(
+        [
+          [0, horizon],
+          [w * 0.15, h * 0.15],
+          [w * 0.32, horizon],
+          [w * 0.45, h * 0.22],
+          [w * 0.65, horizon],
+          [w * 0.88, h * 0.19],
+          [w, horizon],
+        ],
+        "#464059",
+      );
+      g.fillStyle = "#343448";
+      g.fillRect(0, horizon, w, h);
+      polygon(
+        [
+          [vanish - 20, horizon],
+          [vanish + 20, horizon],
+          [w / 2 + roadWidth / 2, bottom],
+          [w / 2 - roadWidth / 2, bottom],
+        ],
+        "#252b3a",
+      );
+      g.strokeStyle = "#e3a09b";
+      g.lineWidth = 3;
+      for (const side of [-1, 1]) {
+        g.beginPath();
+        g.moveTo(vanish + side * 20, horizon);
+        g.lineTo(w / 2 + (side * roadWidth) / 2, bottom);
+        g.stroke();
+      }
+      for (let z = 0; z < 16; z++) {
+        let p = ((z / 16 + distance / 800) % 1) ** 2,
+          py = horizon + p * (h - horizon),
+          rw = 40 + p * (roadWidth - 40);
+        g.strokeStyle = "#f0c593";
+        g.lineWidth = 1 + p * 3;
+        for (const lane of [-1, 1]) {
+          g.beginPath();
+          g.moveTo(vanish * (1 - p) + (w / 2) * p + (lane * rw) / 6, py);
+          g.lineTo(
+            vanish * (1 - p) + (w / 2) * p + (lane * rw) / 6,
+            py + 4 + p * 20,
+          );
+          g.stroke();
+        }
+      }
+      if (!stopped) {
+        distance += dt * 80;
+        spawn += dt;
+        hit = Math.max(0, hit - dt);
+        car += (target - car) * Math.min(1, dt * 10);
+        if (spawn > 1.1) {
+          traffic.push({ lane: Math.floor(Math.random() * 3) - 1, p: 0 });
+          spawn = 0;
+        }
+        for (const v of traffic) {
+          v.p += dt * 0.3;
+          if (
+            v.p > 0.8 &&
+            v.p < 0.97 &&
+            Math.abs(v.lane - car) < 0.55 &&
+            !v.hit &&
+            hit === 0
+          ) {
+            v.hit = true;
+            lives--;
+            hit = 1.3;
+            if (lives <= 0) {
+              stopped = true;
+              document.querySelector("#restart").style.display = "block";
+            }
+          }
+        }
+        for (let i = traffic.length - 1; i >= 0; i--)
+          if (traffic[i].p > 1.2) traffic.splice(i, 1);
+      }
+      for (const v of traffic) {
+        let p = v.p ** 2,
+          py = horizon + p * (h - horizon),
+          rw = 40 + p * (roadWidth - 40);
+        drawCar(
+          vanish * (1 - p) + (w / 2) * p + (v.lane * rw) / 3,
+          py,
+          13 + p * 47,
+          "#8caaa7",
+        );
+      }
+      if (hit === 0 || Math.floor(now / 100) % 2 === 0)
+        drawCar(
+          w / 2 + (car * roadWidth) / 3,
+          h * 0.86,
+          Math.min(52, w * 0.085),
+          "#e58c70",
+        );
+      document.querySelector("#distance").textContent = Math.floor(distance);
+      document.querySelector("#lives").textContent = "♥ ".repeat(
+        Math.max(0, lives),
+      );
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  </script>
+</html>

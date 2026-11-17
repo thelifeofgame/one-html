@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#f8f7f3" />
+    <meta
+      name="description"
+      content="Discover little games, playful experiments, and useful tools. A world of possibilities, one HTML at a time."
+    />
+    <title>OneHTML — Small files. Big possibilities.</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/layout.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#collection">Skip to collection</a>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="/" aria-label="OneHTML home"
+          ><span class="brand-mark">✳</span
+          ><span>onehtml<span class="brand-dot">.</span></span></a
+        >
+        <nav id="main-nav" aria-label="Main navigation"></nav>
+        <div class="header-actions" id="header-actions"></div>
+      </div>
+    </header>
+    <main id="main-content">
+      <section class="hero container" id="hero"></section>
+      <section
+        class="collection container"
+        id="collection"
+        aria-labelledby="collection-title"
+      >
+        <div class="collection-heading" id="collection-heading"></div>
+        <div class="collection-toolbar" id="toolbar"></div>
+        <div id="works" class="works-grid" aria-live="polite">
+          <div class="loading-state">Loading the good stuff…</div>
+        </div>
+        <div id="sponsor-banner"></div>
+      </section>
+      <section class="closing-note container" id="closing-note"></section>
+    </main>
+    <footer class="site-footer container" id="footer"></footer>
+    <dialog id="app-modal" aria-label="OneHTML dialog">
+      <div id="modal-content"></div>
+    </dialog>
+    <div id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>

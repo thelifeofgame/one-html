@@ -1,0 +1,150 @@
+[
+  {
+    "id": "saltline",
+    "title": "Saltline · Jimao",
+    "title_zh": "Saltline · 几猫 3A",
+    "description": "A rain-soaked harbor FPS in about 1.4 MB. Fight robotic patrols, disable three relays and extract. Community Chinese edition of Felix Rieseberg's Claude experiment.",
+    "description_zh": "约 1.4 MB 的雨夜港口 FPS：机械巡逻、湿地倒影、三座中继与撤离任务。「几猫」中文流传版，原作为 Felix Rieseberg 的 Saltline。首次需现场生成场景，请等待开始按钮；设置内可提高画质。WASD 移动、鼠标瞄准、R 换弹、E 交互。",
+    "category": "game",
+    "credit": "Felix Rieseberg · Claude",
+    "source_url": "https://github.com/Megasu/jimao-3a-game",
+    "versions": [
+      {
+        "file": "saltline-en.original.html",
+        "sha256": "f34e6debbfa7526b72be2daa24595c2f195e102a7aede4f22e59138c99cd6852",
+        "source_url": "https://github.com/realcodebear/saltline-fable-5.2",
+        "source_note": "English standalone community mirror. Original author artifact: https://claude.ai/artifact/BGY1SztrAYcJQHSsnHHGmp"
+      },
+      {
+        "file": "saltline-zh.original.html",
+        "sha256": "9e55b5200b088adaf8e1152da04efc0d3b25e236e6baf2dee96f81e23e084966",
+        "variant": "adapted",
+        "adaptation_note": "Community Chinese edition, retained byte for byte from Megasu/jimao-3a-game. Not claimed to be identical to either the first or latest author artifact.",
+        "source_note": "Original author: Felix Rieseberg. Chinese archive: Megasu/jimao-3a-game. Retrieved 2026-11-17."
+      },
+      {
+        "file": "saltline.play.html",
+        "sha256": "c02c62375ba555240a7a02fd393a340c385db0e01f640d8f6df6a9cb9f1f9df1",
+        "variant": "adapted",
+        "source_note": "Based on the preserved Chinese community HTML. Original author: Felix Rieseberg.",
+        "adaptation_note": "Start at the medium graphics preset with 512px procedural textures to reduce first-load work. Reflections remain enabled. High and ultra presets remain available in Settings. Both received source files are preserved separately."
+      }
+    ]
+  },
+  {
+    "id": "mosswing",
+    "title": "Mosswing",
+    "title_zh": "Mosswing · 林间飞行",
+    "description": "Fly through a lush procedural 3D garden with a single tap. A self-contained community game by Ayi1337, attributed by its creator to GPT-6 Astra.",
+    "description_zh": "穿过雾气与花叶，用一次次轻拍保持飞行，在林间寻找空隙。Ayi1337 发布的单文件 3D 游戏；点击或空格振翅，支持触屏。",
+    "category": "game",
+    "credit": "Ayi1337 · GPT-6 Astra",
+    "source_url": "https://github.com/Ayi1337/gpt6-astra-one-shot-games/tree/main/mosswing",
+    "versions": [
+      {
+        "file": "mosswing.original.html",
+        "sha256": "3efe39af37efbdbe92c2310a321d410b34787cc329f2837e716a9e0d2975d2e3",
+        "source_revision": "Git blob e718af5d46cb15033a8692a96378e4c8d30d16e4",
+        "source_note": "Creator-published standalone HTML, retrieved 2026-11-17."
+      }
+    ]
+  },
+  {
+    "id": "london-railway",
+    "title": "London Dream Railway",
+    "title_zh": "London Dream Railway · 伦敦梦幻铁路",
+    "description": "A 3D toy London with miniature trains, landmarks, boats, six seasonal scenes and a train-driver view. Featured in OpenAI's Developers Showcase.",
+    "description_zh": "把伦敦放进一张 3D 玩具沙盘：小火车、大本钟、伦敦眼、游船与四季灯光。可自动游览，也可切换列车驾驶视角。OpenAI 官方展厅收录作品。",
+    "category": "visual",
+    "credit": "Peter Gostev · Codex",
+    "source_url": "https://developers.openai.com/showcase/london-train",
+    "versions": [
+      {
+        "file": "london.original.html",
+        "sha256": "a47b05d25c05a5f3e8f2517a025b793659c4d1417e24bdf7d63e94873d111054",
+        "source_url": "https://github.com/petergpt/london-train",
+        "source_revision": "e84237e25b2e277ccf7c1110689eb019db106c22",
+        "source_note": "Original index.html requires main.js, styles.css and Three.js. Companion source files are retained in the collection archive."
+      },
+      {
+        "file": "london.play.html",
+        "sha256": "7a4446c7780b5179b997345eee815201213302b4b7e2b9527e29511a378e654a",
+        "source_revision": "e84237e25b2e277ccf7c1110689eb019db106c22",
+        "variant": "adapted",
+        "adaptation_note": "Bundled the original JavaScript, CSS, Three.js 0.164.1 and OrbitControls into one offline HTML. Removed the external import map; scene and interaction logic are retained."
+      }
+    ]
+  },
+  {
+    "id": "openai-ocean",
+    "title": "Ocean Wave Simulation",
+    "title_zh": "Ocean Wave Simulation · 海浪模拟",
+    "description": "OpenAI's published GPT-5.2 demo: a real-time ocean with adjustable wind, waves and lighting, implemented in a single HTML file.",
+    "description_zh": "OpenAI 官方公开的 GPT-5.2 单文件演示。实时海浪与天空，可调风速、浪高与光照，拖动视角看水面起伏。",
+    "category": "visual",
+    "credit": "OpenAI · GPT-5.2",
+    "source_url": "https://github.com/openai/gpt-5-coding-examples/tree/77f6322723703941f0b884d1a1cb77c60aad5187/apps/ocean-wave-simulation-5.2",
+    "versions": [
+      {
+        "file": "ocean.original.html",
+        "sha256": "668c5fb85658ec1f31a507c072521455f5b583ad73479af2c2cdae638920fed7",
+        "source_revision": "77f6322723703941f0b884d1a1cb77c60aad5187",
+        "source_note": "Unmodified HTML from OpenAI's official gpt-5-coding-examples repository."
+      }
+    ]
+  },
+  {
+    "id": "openai-solar",
+    "title": "Solar System Explorer",
+    "title_zh": "Solar System Explorer · 太阳系漫游",
+    "description": "Explore animated planetary orbits and inspect planets in OpenAI's published single-file GPT-5.2 solar-system demo.",
+    "description_zh": "OpenAI 官方 GPT-5.2 演示。穿行星空、查看行星轨道与信息，控制时间流速，在一个 HTML 里漫游太阳系。",
+    "category": "visual",
+    "credit": "OpenAI · GPT-5.2",
+    "source_url": "https://github.com/openai/gpt-5-coding-examples/tree/77f6322723703941f0b884d1a1cb77c60aad5187/apps/solar-system-explorer-5.2",
+    "versions": [
+      {
+        "file": "solar.original.html",
+        "sha256": "66d5220a039cde06743a8ab43848f6c0bd9593f3caf79e431e40f43b4b807410",
+        "source_revision": "77f6322723703941f0b884d1a1cb77c60aad5187",
+        "source_note": "Unmodified HTML from OpenAI's official gpt-5-coding-examples repository."
+      }
+    ]
+  },
+  {
+    "id": "openai-asteroids",
+    "title": "Nebula Drifter",
+    "title_zh": "Nebula Drifter · 星云突围",
+    "description": "OpenAI's published GPT-5.2 space dogfight demo with glowing trails, enemy waves and responsive controls, entirely in one HTML file.",
+    "description_zh": "OpenAI 官方 GPT-5.2 太空空战演示。驾驶飞船迎击敌机波次，在霓虹拖尾和爆炸粒子中突围。按游戏内提示操控。",
+    "category": "game",
+    "credit": "OpenAI · GPT-5.2",
+    "source_url": "https://github.com/openai/gpt-5-coding-examples/tree/77f6322723703941f0b884d1a1cb77c60aad5187/apps/asteroid-game-5.2",
+    "versions": [
+      {
+        "file": "asteroid.original.html",
+        "sha256": "6d65ef047a4778b018ac8675582ec35336d6b6bf4fc60dae7dec5c20e44a0c08",
+        "source_revision": "77f6322723703941f0b884d1a1cb77c60aad5187",
+        "source_note": "Unmodified HTML from OpenAI's official gpt-5-coding-examples repository."
+      }
+    ]
+  },
+  {
+    "id": "openai-lights",
+    "title": "Festival Lights Show",
+    "title_zh": "Festival Lights Show · 音乐灯光秀",
+    "description": "An audio-reactive LED light wall from OpenAI's official GPT-5 examples. Mix colors, patterns, intensity and a built-in demo beat.",
+    "description_zh": "OpenAI 官方 GPT-5 音乐灯光秀。用内置节拍点亮 LED 点阵，自由组合色彩与动态图案，调节速度、亮度和网格密度。",
+    "category": "visual",
+    "credit": "OpenAI · GPT-5",
+    "source_url": "https://github.com/openai/gpt-5-coding-examples/tree/77f6322723703941f0b884d1a1cb77c60aad5187/apps/festival-lights-show",
+    "versions": [
+      {
+        "file": "festival.original.html",
+        "sha256": "42ef789ee723c78087763aacf0e110a0f3cced457b1f7c40d754ff1b53d0cb95",
+        "source_revision": "77f6322723703941f0b884d1a1cb77c60aad5187",
+        "source_note": "Unmodified HTML from OpenAI's official gpt-5-coding-examples repository."
+      }
+    ]
+  }
+]

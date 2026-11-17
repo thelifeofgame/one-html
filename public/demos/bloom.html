@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Bloom · OneHTML original</title
+  ><style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #f2eadd;
+      font: 13px system-ui;
+      color: #786b54;
+    }
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      touch-action: none;
+    }
+    .hud {
+      position: fixed;
+      top: 22px;
+      left: 24px;
+      pointer-events: none;
+    }
+    .hud strong {
+      font-size: 24px;
+      letter-spacing: -1px;
+    }
+    .hud small {
+      display: block;
+      margin-top: 6px;
+      color: #9a8b73;
+    }
+    button {
+      position: fixed;
+      top: 21px;
+      right: 23px;
+      background: #fff8e9;
+      border: 1px solid #d9c9ad;
+      padding: 8px 13px;
+      border-radius: 8px;
+      color: #8c7757;
+      cursor: pointer;
+      font: 11px system-ui;
+    }
+    .hint {
+      position: fixed;
+      bottom: 18px;
+      text-align: center;
+      width: 100%;
+      font-size: 10px;
+      color: #9a8b73;
+      pointer-events: none;
+    }</style
+  ><canvas></canvas>
+  <div class="hud">
+    <strong>bloom.</strong><small>Leave a little beauty behind.</small>
+  </div>
+  <button id="clear">A fresh start</button>
+  <div class="hint">Move your cursor or touch to grow a garden</div>
+  <script>
+    // OneHTML original demo. MIT License. Copyright (c) 2026 OneHTML contributors.
+    const c = document.querySelector("canvas"),
+      g = c.getContext("2d");
+    let w,
+      h,
+      lastSpawn = 0,
+      last = 0;
+    const flowers = [],
+      colors = ["#dea397", "#e7be7c", "#adb5ce", "#d1a6b2", "#c0c88e"];
+    function resize() {
+      w = innerWidth;
+      h = innerHeight;
+      let d = Math.min(devicePixelRatio, 2);
+      c.width = w * d;
+      c.height = h * d;
+      g.setTransform(d, 0, 0, d, 0, 0);
+    }
+    addEventListener("resize", resize);
+    resize();
+    function plant(x, y) {
+      if (flowers.length >= 100) flowers.shift();
+      flowers.push({
+        x,
+        y,
+        size: 17 + Math.random() * 24,
+        grow: 0,
+        rotate: Math.random() * 7,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        stem: 25 + Math.random() * 70,
+      });
+    }
+    for (let i = 0; i < 8; i++)
+      plant(
+        w * 0.15 + Math.random() * w * 0.7,
+        h * 0.25 + Math.random() * h * 0.5,
+      );
+    c.onpointermove = (e) => {
+      if (performance.now() - lastSpawn > 100) {
+        plant(e.clientX, e.clientY);
+        lastSpawn = performance.now();
+      }
+    };
+    c.onpointerdown = (e) => plant(e.clientX, e.clientY);
+    document.querySelector("#clear").onclick = () => (flowers.length = 0);
+    function frame(time) {
+      let dt = Math.min((time - last) / 1000 || 0, 0.04);
+      last = time;
+      g.fillStyle = "#f2eadd";
+      g.fillRect(0, 0, w, h);
+      for (const f of flowers) {
+        f.grow = Math.min(1, f.grow + dt * 0.8);
+        let p = 1 - (1 - f.grow) ** 3;
+        g.save();
+        g.translate(f.x, f.y);
+        g.scale(p, p);
+        g.strokeStyle = "#8b9a74";
+        g.lineWidth = 2;
+        g.beginPath();
+        g.moveTo(0, 0);
+        g.quadraticCurveTo(-10, f.stem / 2, Math.sin(f.rotate) * 20, f.stem);
+        g.stroke();
+        g.fillStyle = "#a2af84";
+        g.beginPath();
+        g.ellipse(-8, f.stem * 0.6, 5, 14, -0.7, 0, 7);
+        g.fill();
+        g.rotate(f.rotate + Math.sin(time / 1800 + f.x) * 0.07);
+        g.fillStyle = f.color;
+        for (let i = 0; i < 6; i++) {
+          g.rotate(Math.PI / 3);
+          g.beginPath();
+          g.ellipse(0, -f.size * 0.55, f.size * 0.35, f.size * 0.7, 0, 0, 7);
+          g.fill();
+        }
+        g.fillStyle = "#f6dda0";
+        g.beginPath();
+        g.arc(0, 0, f.size * 0.28, 0, 7);
+        g.fill();
+        g.restore();
+      }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  </script>
+</html>

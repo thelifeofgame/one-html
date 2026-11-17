@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Focus Island · OneHTML original</title
+  ><style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #dfe6ce;
+      color: #426556;
+      font: 13px system-ui;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    h1 {
+      font-size: 22px;
+      letter-spacing: -0.8px;
+      margin: 0 0 6px;
+    }
+    p {
+      font-size: 10px;
+      opacity: 0.6;
+      margin: 0 0 10px;
+    }
+    svg {
+      width: 220px;
+      height: 130px;
+    }
+    #clock {
+      font-size: 51px;
+      font-weight: 300;
+      letter-spacing: -3px;
+      line-height: 1.2;
+      font-variant-numeric: tabular-nums;
+    }
+    .presets {
+      display: flex;
+      gap: 7px;
+      margin: 15px 0 18px;
+    }
+    button {
+      font: 11px system-ui;
+      border: 1px solid #9db295;
+      border-radius: 7px;
+      background: transparent;
+      color: #597a62;
+      cursor: pointer;
+      padding: 7px 13px;
+    }
+    button.active {
+      background: #6c8b64;
+      color: #f5f5e3;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+    #start {
+      background: #50775f;
+      color: #f4f5e4;
+      border-color: #50775f;
+      min-width: 99px;
+    }
+    .hint {
+      font-size: 9px;
+      margin-top: 18px;
+      opacity: 0.65;
+    }
+    @media (max-height: 400px) {
+      svg {
+        height: 80px;
+      }
+      #clock {
+        font-size: 39px;
+      }
+      .presets {
+        margin: 9px 0;
+      }
+      .hint {
+        margin-top: 10px;
+      }
+    }
+  </style>
+  <h1>focus island.</h1>
+  <p>One thing at a time. You’re doing fine.</p>
+  <svg viewBox="0 0 300 170" aria-hidden="true">
+    <ellipse cx="150" cy="135" rx="105" ry="23" fill="#b1cbb0" />
+    <path d="M48 117q100-37 204 0-24 40-102 37-77 0-102-37" fill="#ddc58d" />
+    <ellipse cx="150" cy="115" rx="99" ry="24" fill="#b4c18a" />
+    <path d="M153 117V42" stroke="#897448" stroke-width="6" />
+    <path
+      d="M153 58q-54-50-83-8 52-15 83 8m0 0q54-60 82-16-45-10-82 16m0 0q-17-66-50-55 45 25 50 55m0 0q17-68 49-53-36 23-49 53"
+      fill="#6b8b61"
+    />
+  </svg>
+  <div id="clock" role="timer" aria-label="Time remaining">25:00</div>
+  <div class="presets">
+    <button data-minutes="5">5 min</button
+    ><button data-minutes="25" class="active">25 min</button
+    ><button data-minutes="45">45 min</button>
+  </div>
+  <div class="actions">
+    <button id="start">Start focusing</button><button id="reset">Reset</button>
+  </div>
+  <div class="hint" id="hint">Take a breath. Start when you’re ready.</div>
+  <script>
+    // OneHTML original demo. MIT License. Copyright (c) 2026 OneHTML contributors.
+    let minutes = 25,
+      remaining = minutes * 60,
+      running = false,
+      deadline = 0,
+      interval;
+    const clock = document.querySelector("#clock"),
+      start = document.querySelector("#start"),
+      hint = document.querySelector("#hint");
+    function render() {
+      clock.textContent =
+        String(Math.floor(remaining / 60)).padStart(2, "0") +
+        ":" +
+        String(remaining % 60).padStart(2, "0");
+    }
+    function stop() {
+      running = false;
+      clearInterval(interval);
+      start.textContent = "Keep focusing";
+    }
+    function tick() {
+      remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      render();
+      if (remaining === 0) {
+        stop();
+        start.textContent = "Start again";
+        hint.textContent = "A little progress. Time for a little break.";
+      }
+    }
+    function reset() {
+      stop();
+      remaining = minutes * 60;
+      render();
+      start.textContent = "Start focusing";
+      hint.textContent = "Take a breath. Start when you’re ready.";
+    }
+    document.querySelectorAll("[data-minutes]").forEach(
+      (button) =>
+        (button.onclick = () => {
+          minutes = Number(button.dataset.minutes);
+          document
+            .querySelectorAll("[data-minutes]")
+            .forEach((b) => b.classList.toggle("active", b === button));
+          reset();
+        }),
+    );
+    start.onclick = () => {
+      if (running) {
+        tick();
+        stop();
+        hint.textContent = "A pause is okay. Come back when you’re ready.";
+      } else {
+        if (!remaining) remaining = minutes * 60;
+        deadline = Date.now() + remaining * 1000;
+        running = true;
+        start.textContent = "Pause";
+        hint.textContent = "Just you, and the next little step.";
+        interval = setInterval(tick, 250);
+      }
+    };
+    document.querySelector("#reset").onclick = reset;
+  </script>
+</html>

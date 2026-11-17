@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Little Piano · OneHTML original</title
+  ><style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #eee7d7;
+      color: #78684d;
+      font: 13px system-ui;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    h1 {
+      font-size: 30px;
+      letter-spacing: -1.5px;
+      margin: 0 0 8px;
+    }
+    p {
+      font-size: 11px;
+      color: #a28e6c;
+      margin: 0 0 36px;
+    }
+    .piano {
+      padding: 14px 14px 19px;
+      background: #b58e66;
+      border-radius: 17px;
+      box-shadow:
+        0 12px 0 #a6805e,
+        0 22px 40px #9c845330;
+      display: flex;
+      gap: 4px;
+      max-width: 94vw;
+    }
+    .key {
+      position: relative;
+      width: clamp(28px, 7vw, 58px);
+      height: 150px;
+      border: 1px solid #d5c7ac;
+      border-bottom: 6px solid #e1d6ba;
+      border-radius: 5px;
+      background: #fffae8;
+      color: #b5a281;
+      cursor: pointer;
+      font: 10px system-ui;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 12px;
+      touch-action: none;
+    }
+    .key.active {
+      background: #efc785;
+      border-bottom-width: 2px;
+      transform: translateY(3px);
+    }
+    .key.sharp:after {
+      content: "";
+      position: absolute;
+      right: -12px;
+      top: -1px;
+      width: 20px;
+      height: 85px;
+      border-radius: 0 0 4px 4px;
+      background: #444b42;
+      box-shadow: 0 4px 0 #30372f;
+      z-index: 1;
+      pointer-events: none;
+    }
+    .hint {
+      font-size: 10px;
+      color: #a28e6c;
+      margin-top: 37px;
+    }
+    #note {
+      font-size: 12px;
+      min-height: 20px;
+      color: #b0895a;
+      margin-top: 23px;
+    }
+    @media (max-height: 340px) {
+      p {
+        margin-bottom: 18px;
+      }
+      .key {
+        height: 110px;
+      }
+      .hint {
+        margin-top: 25px;
+      }
+      #note {
+        margin-top: 10px;
+      }
+    }
+  </style>
+  <h1>little piano.</h1>
+  <p>Eight keys. Your own little melody.</p>
+  <div class="piano" id="piano"></div>
+  <div id="note">♪</div>
+  <div class="hint">Play A S D F G H J K · or tap the keys</div>
+  <script>
+    // OneHTML original demo. MIT License. Copyright (c) 2026 OneHTML contributors.
+    let audio;
+    const notes = ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"],
+      frequencies = [261.63, 293.66, 329.63, 349.23, 392, 440, 493.88, 523.25],
+      letters = ["a", "s", "d", "f", "g", "h", "j", "k"];
+    document.querySelector("#piano").innerHTML = notes
+      .map(
+        (note, i) =>
+          `<button class="key ${[0, 1, 3, 4, 5].includes(i) ? "sharp" : ""}" data-note="${i}" aria-label="${note}">${letters[i].toUpperCase()}</button>`,
+      )
+      .join("");
+    function play(i) {
+      audio ??= new AudioContext();
+      audio.resume();
+      let oscillator = audio.createOscillator(),
+        gain = audio.createGain(),
+        now = audio.currentTime;
+      oscillator.type = "triangle";
+      oscillator.frequency.value = frequencies[i];
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.3, now + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 1.15);
+      oscillator.connect(gain);
+      gain.connect(audio.destination);
+      oscillator.start();
+      oscillator.stop(now + 1.2);
+      const button = document.querySelector(`[data-note="${i}"]`);
+      button.classList.add("active");
+      setTimeout(() => button.classList.remove("active"), 160);
+      document.querySelector("#note").textContent = "♪ " + notes[i];
+    }
+    document.querySelector("#piano").addEventListener("pointerdown", (e) => {
+      const button = e.target.closest("[data-note]");
+      if (button) play(Number(button.dataset.note));
+    });
+    addEventListener("keydown", (e) => {
+      let i = letters.indexOf(e.key.toLowerCase());
+      if (i >= 0 && !e.repeat) {
+        e.preventDefault();
+        play(i);
+      }
+    });
+  </script>
+</html>

@@ -1,0 +1,13 @@
+node_modules/
+.data/
+.wrangler/
+.env*
+.dev.vars*
+output/
+.playwright-cli/
+wrangler.production.json
+wrangler.sandbox.production.json
+releases/
+.server.env*
+private/
+*.log

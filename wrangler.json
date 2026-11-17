@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "onehtml",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-11-11",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/play/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "onehtml-db",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [{ "binding": "HTML_BUCKET", "bucket_name": "onehtml-files" }],
+  "vars": { "DEMO_ONLY": "false" },
+  "observability": { "enabled": true, "logs": { "invocation_logs": false } }
+}

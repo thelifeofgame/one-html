@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Orbital · OneHTML original</title
+  ><style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #263f3c;
+      color: #e9e7c8;
+      font: 13px system-ui;
+    }
+    canvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      touch-action: none;
+    }
+    .hud {
+      position: fixed;
+      top: 21px;
+      left: 24px;
+      pointer-events: none;
+    }
+    .hud strong {
+      font-size: 23px;
+      letter-spacing: -1px;
+    }
+    .hud small {
+      display: block;
+      margin-top: 6px;
+      opacity: 0.6;
+    }
+    .controls {
+      position: fixed;
+      right: 20px;
+      top: 20px;
+      display: flex;
+      gap: 8px;
+    }
+    button {
+      border: 1px solid #dbe0bd33;
+      background: #dbe0bd10;
+      color: #dbe0bd;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font: 11px system-ui;
+    }
+    .hint {
+      position: fixed;
+      bottom: 18px;
+      width: 100%;
+      text-align: center;
+      opacity: 0.6;
+      font-size: 10px;
+      pointer-events: none;
+    }</style
+  ><canvas></canvas>
+  <div class="hud">
+    <strong>orbital.</strong><small>A universe, made by you.</small>
+  </div>
+  <div class="controls">
+    <button id="pause">Pause</button><button id="reset">Reset</button>
+  </div>
+  <div class="hint">Click anywhere to add a planet · Up to 40 tiny worlds</div>
+  <script>
+    // OneHTML original demo. MIT License. Copyright (c) 2026 OneHTML contributors.
+    const c = document.querySelector("canvas"),
+      g = c.getContext("2d");
+    let w,
+      h,
+      paused = false,
+      last = 0;
+    const planets = [],
+      colors = ["#d7997b", "#b5cab0", "#a4bec3", "#c8b2c5", "#d5be84"];
+    function resize() {
+      w = innerWidth;
+      h = innerHeight;
+      let d = Math.min(devicePixelRatio, 2);
+      c.width = w * d;
+      c.height = h * d;
+      g.setTransform(d, 0, 0, d, 0, 0);
+    }
+    addEventListener("resize", resize);
+    resize();
+    function add(x, y) {
+      let r = Math.hypot(x, y);
+      if (r < 35 || planets.length >= 40) return;
+      let speed = Math.sqrt(7500 / r);
+      planets.push({
+        x,
+        y,
+        vx: (-y / r) * speed,
+        vy: (x / r) * speed,
+        r: 4 + Math.random() * 8,
+        color: colors[planets.length % colors.length],
+        trail: [],
+      });
+    }
+    function reset() {
+      planets.length = 0;
+      add(-120, 40);
+      add(180, -50);
+      add(65, 140);
+    }
+    reset();
+    c.onpointerdown = (e) => add(e.clientX - w / 2, e.clientY - h / 2);
+    document.querySelector("#pause").onclick = (e) => {
+      paused = !paused;
+      e.target.textContent = paused ? "Resume" : "Pause";
+    };
+    document.querySelector("#reset").onclick = reset;
+    function frame(time) {
+      const dt = Math.min((time - last) / 1000 || 0, 0.035);
+      last = time;
+      g.fillStyle = "#263f3c";
+      g.fillRect(0, 0, w, h);
+      g.fillStyle = "#bbcbb8";
+      for (let i = 0; i < 60; i++) {
+        let sx = (i * 137.3) % w,
+          sy = (i * 87.7) % h;
+        g.globalAlpha = 0.2 + (i % 3) * 0.1;
+        g.fillRect(sx, sy, 1.5, 1.5);
+      }
+      g.globalAlpha = 1;
+      g.save();
+      g.translate(w / 2, h / 2);
+      for (const p of planets) {
+        if (!paused) {
+          let r = Math.max(25, Math.hypot(p.x, p.y)),
+            a = 7500 / (r * r);
+          p.vx -= (p.x / r) * a * dt;
+          p.vy -= (p.y / r) * a * dt;
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.trail.push({ x: p.x, y: p.y });
+          if (p.trail.length > 250) p.trail.shift();
+        }
+        g.strokeStyle = p.color;
+        g.globalAlpha = 0.3;
+        g.lineWidth = 1;
+        g.beginPath();
+        p.trail.forEach((q, i) =>
+          i ? g.lineTo(q.x, q.y) : g.moveTo(q.x, q.y),
+        );
+        g.stroke();
+        g.globalAlpha = 1;
+        g.fillStyle = p.color;
+        g.beginPath();
+        g.arc(p.x, p.y, p.r, 0, 7);
+        g.fill();
+      }
+      g.shadowColor = "#edc779";
+      g.shadowBlur = 35;
+      g.fillStyle = "#edc779";
+      g.beginPath();
+      g.arc(0, 0, 26, 0, 7);
+      g.fill();
+      g.shadowBlur = 0;
+      g.fillStyle = "#f4d698";
+      g.beginPath();
+      g.arc(-7, -7, 15, 0, 7);
+      g.fill();
+      g.restore();
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  </script>
+</html>
