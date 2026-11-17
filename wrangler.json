@@ -16,7 +16,12 @@
       "migrations_dir": "migrations"
     }
   ],
-  "r2_buckets": [{ "binding": "HTML_BUCKET", "bucket_name": "onehtml-files" }],
+  "kv_namespaces": [
+    {
+      "binding": "ONEHTML_STORAGE",
+      "id": "b7904ff0ee4240d59599d88ab18ca22c"
+    }
+  ],
   "vars": {
     "DEMO_ONLY": "false",
     "SITE_ORIGIN": "https://onehtml.dev",

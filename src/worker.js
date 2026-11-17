@@ -12,6 +12,8 @@ import {
   readVersionHtml,
   versionMetadata,
   insertVersion,
+  putStoredHtml,
+  deleteStoredHtml,
 } from "./archive.js";
 import { issuePlayTicket, readPlayTicket } from "./play-tickets.js";
 import {
@@ -242,12 +244,10 @@ async function submitHtml(request, env, user, data, existing) {
     }),
   );
   try {
-    await env.HTML_BUCKET.put(key, data.html, {
-      httpMetadata: { contentType: "text/html; charset=utf-8" },
-    });
+    await putStoredHtml(key, data.html, env);
     await env.DB.batch(statements);
   } catch (error) {
-    await env.HTML_BUCKET.delete(key);
+    await deleteStoredHtml(key, env);
     await env.DB.prepare(
       "DELETE FROM submission_dedup WHERE user_id=? AND sha256=? AND version_id=?",
     )

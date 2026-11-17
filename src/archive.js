@@ -1,5 +1,77 @@
 import { hash } from "./security.js";
 
+async function getStoredHtml(key, env) {
+  if (env.HTML_BUCKET) {
+    const object = await env.HTML_BUCKET.get(key);
+    if (object) return object.text();
+  }
+  if (env.ONEHTML_STORAGE) {
+    const data = await env.ONEHTML_STORAGE.get(key);
+    if (data !== null) return data;
+  }
+  if (env.DB) {
+    try {
+      const row = await env.DB.prepare(
+        "SELECT content FROM file_blobs WHERE key=?",
+      )
+        .bind(key)
+        .first();
+      if (row?.content) return row.content;
+    } catch {
+      // Table may not exist in environments using R2/mock
+    }
+  }
+  return null;
+}
+
+export async function putStoredHtml(key, html, env) {
+  if (env.HTML_BUCKET) {
+    await env.HTML_BUCKET.put(key, html, {
+      httpMetadata: { contentType: "text/html; charset=utf-8" },
+    });
+    return;
+  }
+  if (env.ONEHTML_STORAGE) {
+    await env.ONEHTML_STORAGE.put(key, html);
+    return;
+  }
+  if (env.DB) {
+    await env.DB.prepare(
+      "INSERT OR REPLACE INTO file_blobs (key, content, created_at) VALUES (?, ?, ?)",
+    )
+      .bind(key, html, Date.now())
+      .run();
+  }
+}
+
+export async function deleteStoredHtml(key, env) {
+  if (env.HTML_BUCKET) {
+    try {
+      await env.HTML_BUCKET.delete(key);
+    } catch {
+      // Ignore errors on rollback cleanup
+    }
+    return;
+  }
+  if (env.ONEHTML_STORAGE) {
+    try {
+      await env.ONEHTML_STORAGE.delete(key);
+    } catch {
+      // Ignore errors on rollback cleanup
+    }
+    return;
+  }
+  if (env.DB) {
+    try {
+      await env.DB.prepare("DELETE FROM file_blobs WHERE key=?")
+        .bind(key)
+        .run();
+    } catch {
+      // Ignore errors on rollback cleanup
+    }
+  }
+}
+
 export async function readVersionHtml(version, env) {
   if (version.builtin_path) {
     const response = await env.ASSETS.fetch(
@@ -7,11 +79,12 @@ export async function readVersionHtml(version, env) {
     );
     if (response.ok) return response.text();
   } else {
-    const object = await env.HTML_BUCKET.get(version.object_key);
-    if (object) return object.text();
+    const html = await getStoredHtml(version.object_key, env);
+    if (html !== null) return html;
   }
   throw Object.assign(new Error("File not found."), { status: 404 });
 }
+
 export async function ensureArchive(work, env) {
   if (work.current_version_id) return work;
   const html = await readVersionHtml(work, env);
@@ -19,9 +92,7 @@ export async function ensureArchive(work, env) {
   const size = new TextEncoder().encode(html).byteLength;
   const versionId = `legacy-${work.id}`;
   const archiveKey = `archive/${work.id}/${digest}.html`;
-  await env.HTML_BUCKET.put(archiveKey, html, {
-    httpMetadata: { contentType: "text/html; charset=utf-8" },
-  });
+  await putStoredHtml(archiveKey, html, env);
   await env.DB.batch([
     env.DB.prepare(
       `INSERT OR IGNORE INTO work_versions
@@ -49,6 +120,7 @@ export async function ensureArchive(work, env) {
   ]);
   return env.DB.prepare("SELECT * FROM works WHERE id=?").bind(work.id).first();
 }
+
 export function versionMetadata(data, previous = {}) {
   const clean = (value, max) =>
     typeof value === "string" ? value.trim().slice(0, max) : "";
@@ -94,6 +166,7 @@ export function versionMetadata(data, previous = {}) {
     adaptation_note: clean(data.adaptation_note, 600),
   };
 }
+
 export function insertVersion(
   db,
   {
@@ -111,8 +184,9 @@ export function insertVersion(
 ) {
   return db
     .prepare(
-      `INSERT INTO work_versions (id,work_id,sha256,content_bytes,object_key,original_filename,source_url,source_revision,source_note,license,variant,adaptation_note,base_version_id,created_by,created_at,status)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      `INSERT INTO work_versions
+      (id,work_id,sha256,content_bytes,object_key,builtin_path,original_filename,source_url,source_revision,source_note,license,variant,adaptation_note,base_version_id,created_by,created_at,status)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     )
     .bind(
       id,
@@ -120,6 +194,7 @@ export function insertVersion(
       digest,
       size,
       key,
+      null,
       metadata.original_filename,
       metadata.source_url,
       metadata.source_revision,

@@ -11,6 +11,7 @@ const sandbox = resolve(root, "wrangler.sandbox.production.json");
 await mkdir(resolve(root, ".data"), { recursive: true });
 const environment = {
   ...process.env,
+  CI: "true",
   WRANGLER_SEND_METRICS: "false",
   WRANGLER_LOG_PATH: resolve(root, ".data/wrangler.log"),
 };
@@ -93,15 +94,24 @@ async function setup() {
         production,
       ]);
   }
-  const bucket = run(
-    ["r2", "bucket", "create", "onehtml-files", "--config", production],
-    { capture: true, allowFailure: true },
-  );
-  if (
-    bucket.status !== 0 &&
-    !/already (exists|own)/i.test(bucket.stderr + bucket.stdout)
-  )
-    throw new Error((bucket.stderr + bucket.stdout).trim());
+  // Initialize KV storage namespace if not configured
+  if (!config.kv_namespaces?.[0]?.id) {
+    const list = run(["kv", "namespace", "list"], { capture: true });
+    const namespaces = JSON.parse(list.stdout || "[]");
+    let ns = namespaces.find((n) => n.title === "ONEHTML_STORAGE");
+    if (!ns) {
+      run(["kv", "namespace", "create", "ONEHTML_STORAGE"]);
+      const updatedList = run(["kv", "namespace", "list"], { capture: true });
+      const updatedNamespaces = JSON.parse(updatedList.stdout || "[]");
+      ns = updatedNamespaces.find((n) => n.title === "ONEHTML_STORAGE");
+    }
+    if (ns) {
+      config.kv_namespaces = [
+        { binding: "ONEHTML_STORAGE", id: ns.id },
+      ];
+      await saveConfig(production, config);
+    }
+  }
   run([
     "d1",
     "migrations",
@@ -172,10 +182,10 @@ async function deploy() {
   const candidates =
     result.stdout.match(/https:\/\/[a-z0-9.-]+\.workers\.dev\b/g) || [];
   const playOrigin =
-    config.vars?.SANDBOX_ORIGIN ||
     candidates.find(
       (value) => new URL(value).hostname.split(".")[0] === playConfig.name,
-    );
+    ) ||
+    config.vars?.SANDBOX_ORIGIN;
   if (!playOrigin)
     throw new Error(
       "The player deployed, but its URL could not be verified. Check the Cloudflare dashboard before retrying.",
@@ -186,7 +196,15 @@ async function deploy() {
     SANDBOX_ORIGIN: playOrigin,
   };
   await saveConfig(production, config);
-  run(["deploy", "--config", production]);
+  const prodResult = run(["deploy", "--config", production], { capture: true });
+  const prodCandidates =
+    prodResult.stdout.match(/https:\/\/[a-z0-9.-]+\.workers\.dev\b/g) || [];
+  const siteOrigin =
+    prodCandidates.find(
+      (value) => new URL(value).hostname.split(".")[0] === config.name,
+    ) ||
+    config.vars?.SITE_ORIGIN;
+
   const secrets = [production, sandbox].map((configPath) => {
     const result = run(["secret", "list", "--config", configPath], {
       capture: true,
@@ -204,7 +222,7 @@ async function deploy() {
       });
   }
   console.log(
-    `Isolated player deployed at ${playOrigin}. Register your owner account, then run npm run cf:admin -- <username>.`,
+    `Isolated player deployed at ${playOrigin}.\nMain site deployed at ${siteOrigin}.\nRegister your owner account, then run npm run cf:admin -- <username>.`,
   );
 }
 async function admin() {
