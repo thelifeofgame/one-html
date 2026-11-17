@@ -164,7 +164,7 @@
       },
       {
         "file": "q1k3.play.html",
-        "sha256": "8599767f7be52140766b69cdc2173a29561bf7fad4b7e028111668e71b767a73",
+        "sha256": "51f5bf78af999810f7351bd3e9519bf580cba69552aa9e000d6d51e81627e76f",
         "variant": "adapted",
         "source_note": "Self-contained offline playable version matching the js13kGames release."
       }
@@ -187,7 +187,7 @@
       },
       {
         "file": "webgl-fluid.play.html",
-        "sha256": "fb0c28d60300756d6794ca0e46ebd0b2f1776aef859973d6b05b21f5488eef9a",
+        "sha256": "b11943e5521545ac8b7875305f4584371ae7956c43ce406f31be775f8a6d3ce0",
         "variant": "adapted",
         "source_note": "Offline standalone HTML build bundling dat.gui.js and WebGL fluid shaders."
       }
@@ -233,7 +233,7 @@
       },
       {
         "file": "canvas-tetris.play.html",
-        "sha256": "20b9f6060a19679e8119315bcd4bb5bb0cbb5164583b7ed246abff9e633f7dee",
+        "sha256": "12bfb722666f0ea1dd1529e82f989d3e75ed0b1e74ded7c5f20fc9d434d6e581",
         "variant": "adapted",
         "source_note": "Modernized single-file edition with glowing neon UI, Web Audio synth and mobile touch controls."
       }
@@ -256,7 +256,7 @@
       },
       {
         "file": "sand-spiel.play.html",
-        "sha256": "6db7b14dbde0e311780d7913d765e85e07aaca5685f7d906e31a4a57badcd4cf",
+        "sha256": "b257c87864b9de2fb319636ea089e30db04dfe55f15e780d1795028329596d39",
         "variant": "adapted",
         "source_note": "Optimized single-file falling sand engine with multiple element brushes."
       }

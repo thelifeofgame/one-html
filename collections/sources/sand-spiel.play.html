@@ -14,15 +14,15 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
+      height: 100%; padding: 4px;
       overflow: hidden;
     }
     .header {
-      margin-bottom: 12px;
+      margin-bottom: 4px;
       text-align: center;
     }
     .header h1 {
-      font-size: 22px;
+      font-size: min(18px, 3.5vh);
       color: #f1f5f9;
       letter-spacing: 1px;
       margin-bottom: 4px;
@@ -33,7 +33,7 @@
     }
     .sandbox-container {
       background: #181b26;
-      padding: 12px;
+      padding: 8px;
       border-radius: 12px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06);
       display: flex;
@@ -51,7 +51,7 @@
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      margin-top: 12px;
+      margin-top: 6px;
       justify-content: center;
     }
     .btn {
@@ -96,7 +96,7 @@
     <p>Cellular Automata Physics Sandbox · MIT / CC0</p>
   </div>
   <div class="sandbox-container">
-    <canvas id="canvas" width="200" height="200" style="width: 500px; height: 500px; max-width: 90vw; max-height: 90vw;"></canvas>
+    <canvas id="canvas" width="200" height="200" style="height: min(58vh, 380px); width: min(58vh, 380px); max-width: 88vw; aspect-ratio: 1/1;"></canvas>
     <div class="toolbar">
       <button class="btn active" onclick="setElement(1, this)">Sand</button>
       <button class="btn" onclick="setElement(2, this)">Water</button>
@@ -302,7 +302,15 @@
     function loop() {
       update();
       render();
-      requestAnimationFrame(loop);
+      // Seed initial interesting physics
+    for (let x = 50; x <= 110; x++) { grid[110 * W + x] = WOOD; }
+    for (let x = 90; x <= 150; x++) { grid[145 * W + x] = WOOD; }
+    for (let y = 20; y < 65; y++) {
+      for (let x = 70; x < 130; x++) {
+        if (Math.random() < 0.5) grid[y * W + x] = (x < 100) ? SAND : WATER;
+      }
+    }
+    requestAnimationFrame(loop);
     }
 
     function getPos(e) {
