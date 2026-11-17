@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Falling Sand Physics Sandbox</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background: #0f111a;
+      color: #94a3b8;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    .header {
+      margin-bottom: 12px;
+      text-align: center;
+    }
+    .header h1 {
+      font-size: 22px;
+      color: #f1f5f9;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+    .header p {
+      font-size: 13px;
+      color: #64748b;
+    }
+    .sandbox-container {
+      background: #181b26;
+      padding: 12px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    canvas {
+      border: 1px solid #282f44;
+      border-radius: 6px;
+      image-rendering: pixelated;
+      cursor: crosshair;
+      touch-action: none;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+      justify-content: center;
+    }
+    .btn {
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 6px;
+      border: 1px solid #2e3852;
+      background: #1e2436;
+      color: #cbd5e1;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn:hover {
+      border-color: #3b82f6;
+      color: #fff;
+    }
+    .btn.active {
+      background: #2563eb;
+      border-color: #3b82f6;
+      color: #fff;
+    }
+    .btn-clear {
+      background: #3b1d24;
+      border-color: #7f1d1d;
+      color: #fca5a5;
+    }
+    .btn-clear:hover {
+      background: #991b1b;
+      color: #fff;
+    }
+    .hint {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>FALLING SAND SIMULATION</h1>
+    <p>Cellular Automata Physics Sandbox · MIT / CC0</p>
+  </div>
+  <div class="sandbox-container">
+    <canvas id="canvas" width="200" height="200" style="width: 500px; height: 500px; max-width: 90vw; max-height: 90vw;"></canvas>
+    <div class="toolbar">
+      <button class="btn active" onclick="setElement(1, this)">Sand</button>
+      <button class="btn" onclick="setElement(2, this)">Water</button>
+      <button class="btn" onclick="setElement(3, this)">Fire</button>
+      <button class="btn" onclick="setElement(4, this)">Wood / Wall</button>
+      <button class="btn" onclick="setElement(5, this)">Acid</button>
+      <button class="btn" onclick="setElement(0, this)">Eraser</button>
+      <button class="btn btn-clear" onclick="clearGrid()">Clear All</button>
+    </div>
+    <div class="hint">Click / Drag or Touch to spawn elements. Watch physics reactions!</div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const W = canvas.width;
+    const H = canvas.height;
+
+    const EMPTY = 0;
+    const SAND = 1;
+    const WATER = 2;
+    const FIRE = 3;
+    const WOOD = 4;
+    const ACID = 5;
+
+    const grid = new Uint8Array(W * H);
+    const life = new Uint8Array(W * H);
+    let selectedElement = SAND;
+    let isDrawing = false;
+    let brushRadius = 3;
+
+    const imgData = ctx.createImageData(W, H);
+    const data32 = new Uint32Array(imgData.data.buffer);
+
+    function setElement(el, btn) {
+      selectedElement = el;
+      document.querySelectorAll(".btn").forEach(b => {
+        if (!b.classList.contains("btn-clear")) b.classList.remove("active");
+      });
+      if (btn) btn.classList.add("active");
+    }
+
+    function clearGrid() {
+      grid.fill(EMPTY);
+      life.fill(0);
+    }
+
+    function spawn(cx, cy, type) {
+      for (let dy = -brushRadius; dy <= brushRadius; dy++) {
+        for (let dx = -brushRadius; dx <= brushRadius; dx++) {
+          if (dx * dx + dy * dy <= brushRadius * brushRadius) {
+            const x = cx + dx;
+            const y = cy + dy;
+            if (x >= 0 && x < W && y >= 0 && y < H) {
+              const idx = y * W + x;
+              if (type === EMPTY) {
+                grid[idx] = EMPTY;
+              } else if (grid[idx] === EMPTY || type === WOOD || type === FIRE) {
+                grid[idx] = type;
+                life[idx] = type === FIRE ? 15 + Math.random() * 15 : 0;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    function update() {
+      // Bottom to top update
+      for (let y = H - 1; y >= 0; y--) {
+        const dir = Math.random() < 0.5 ? 1 : -1;
+        const startX = dir === 1 ? 0 : W - 1;
+        const endX = dir === 1 ? W : -1;
+
+        for (let x = startX; x !== endX; x += dir) {
+          const idx = y * W + x;
+          const type = grid[idx];
+          if (type === EMPTY) continue;
+
+          if (type === SAND) {
+            if (y + 1 < H) {
+              const below = (y + 1) * W + x;
+              const belowL = (y + 1) * W + (x - 1);
+              const belowR = (y + 1) * W + (x + 1);
+
+              if (grid[below] === EMPTY || grid[below] === WATER) {
+                const swap = grid[below];
+                grid[below] = SAND;
+                grid[idx] = swap;
+              } else {
+                const canL = x > 0 && (grid[belowL] === EMPTY || grid[belowL] === WATER);
+                const canR = x < W - 1 && (grid[belowR] === EMPTY || grid[belowR] === WATER);
+                if (canL && canR) {
+                  const target = Math.random() < 0.5 ? belowL : belowR;
+                  const swap = grid[target];
+                  grid[target] = SAND;
+                  grid[idx] = swap;
+                } else if (canL) {
+                  const swap = grid[belowL];
+                  grid[belowL] = SAND;
+                  grid[idx] = swap;
+                } else if (canR) {
+                  const swap = grid[belowR];
+                  grid[belowR] = SAND;
+                  grid[idx] = swap;
+                }
+              }
+            }
+          } else if (type === WATER) {
+            if (y + 1 < H) {
+              const below = (y + 1) * W + x;
+              if (grid[below] === EMPTY) {
+                grid[below] = WATER;
+                grid[idx] = EMPTY;
+                continue;
+              }
+            }
+            // Flow left/right
+            const left = y * W + (x - 1);
+            const right = y * W + (x + 1);
+            const canL = x > 0 && grid[left] === EMPTY;
+            const canR = x < W - 1 && grid[right] === EMPTY;
+            if (canL && canR) {
+              const target = Math.random() < 0.5 ? left : right;
+              grid[target] = WATER;
+              grid[idx] = EMPTY;
+            } else if (canL) {
+              grid[left] = WATER;
+              grid[idx] = EMPTY;
+            } else if (canR) {
+              grid[right] = WATER;
+              grid[idx] = EMPTY;
+            }
+          } else if (type === FIRE) {
+            if (life[idx] > 0) {
+              life[idx]--;
+              // Check neighbors to burn wood
+              for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                  const nx = x + dx;
+                  const ny = y + dy;
+                  if (nx >= 0 && nx < W && ny >= 0 && ny < H) {
+                    const nidx = ny * W + nx;
+                    if (grid[nidx] === WOOD) {
+                      grid[nidx] = FIRE;
+                      life[nidx] = 30 + Math.random() * 20;
+                    } else if (grid[nidx] === WATER) {
+                      grid[idx] = EMPTY; // Extinguished by water
+                    }
+                  }
+                }
+              }
+              // Drift upward
+              if (y > 0 && Math.random() < 0.6) {
+                const up = (y - 1) * W + x + (Math.random() < 0.5 ? 1 : -1);
+                if (up >= 0 && grid[up] === EMPTY) {
+                  grid[up] = FIRE;
+                  life[up] = life[idx];
+                  grid[idx] = EMPTY;
+                }
+              }
+            } else {
+              grid[idx] = EMPTY;
+            }
+          } else if (type === ACID) {
+            if (y + 1 < H) {
+              const below = (y + 1) * W + x;
+              if (grid[below] !== EMPTY && grid[below] !== ACID) {
+                grid[below] = EMPTY; // Dissolve material
+                grid[idx] = EMPTY;
+                continue;
+              } else if (grid[below] === EMPTY) {
+                grid[below] = ACID;
+                grid[idx] = EMPTY;
+                continue;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    function render() {
+      for (let i = 0; i < grid.length; i++) {
+        const type = grid[i];
+        if (type === EMPTY) {
+          data32[i] = 0xff100e0a; // Background color
+        } else if (type === SAND) {
+          data32[i] = 0xff50c8e6; // Warm golden sand (0xAABBGGRR)
+        } else if (type === WATER) {
+          data32[i] = 0xffe68c28; // Azure blue water
+        } else if (type === FIRE) {
+          data32[i] = Math.random() < 0.5 ? 0xff0044ff : 0xff00aaff; // Flickering fire
+        } else if (type === WOOD) {
+          data32[i] = 0xff325a8c; // Brown wood
+        } else if (type === ACID) {
+          data32[i] = 0xff32e632; // Toxic neon green
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
+    }
+
+    function loop() {
+      update();
+      render();
+      requestAnimationFrame(loop);
+    }
+
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      return [
+        Math.floor((clientX - rect.left) * scaleX),
+        Math.floor((clientY - rect.top) * scaleY)
+      ];
+    }
+
+    canvas.addEventListener("pointerdown", (e) => {
+      isDrawing = true;
+      const [x, y] = getPos(e);
+      spawn(x, y, selectedElement);
+    });
+    window.addEventListener("pointerup", () => { isDrawing = false; });
+    canvas.addEventListener("pointermove", (e) => {
+      if (isDrawing) {
+        const [x, y] = getPos(e);
+        spawn(x, y, selectedElement);
+      }
+    });
+
+    loop();
+  </script>
+</body>
+</html>

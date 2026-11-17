@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Neon Canvas Tetris</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body {
+            background: #0d0f18;
+            color: #e0e6ed;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 10px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 12px;
+        }
+        .header h1 {
+            font-size: 26px;
+            letter-spacing: 2px;
+            color: #00f0ff;
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+            margin-bottom: 4px;
+        }
+        .header p {
+            font-size: 13px;
+            color: #8892b0;
+        }
+        .game-container {
+            position: relative;
+            background: #141824;
+            padding: 12px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        canvas {
+            display: block;
+            background: #080a10;
+            border-radius: 6px;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+        }
+        #playbutton {
+            margin-top: 14px;
+            padding: 10px 28px;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #0d0f18;
+            background: linear-gradient(135deg, #00f0ff, #7000ff);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(0, 240, 255, 0.3);
+        }
+        #playbutton:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 240, 255, 0.5);
+        }
+        #playbutton:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .controls-hint {
+            margin-top: 12px;
+            font-size: 12px;
+            color: #64748b;
+            text-align: center;
+            line-height: 1.6;
+        }
+        .touch-pad {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .touch-btn {
+            background: #1e2436;
+            color: #00f0ff;
+            border: 1px solid #2e3852;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .touch-btn:active {
+            background: #00f0ff;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>NEON TETRIS</h1>
+        <p>Offline HTML5 Canvas Arcade</p>
+    </div>
+    <div class="game-container">
+        <canvas width="300" height="600"></canvas>
+        <button id="playbutton" onclick="playButtonClicked()">START GAME</button>
+        <div class="touch-pad">
+            <button class="touch-btn" onclick="triggerKey('left')">◀</button>
+            <button class="touch-btn" onclick="triggerKey('rotate')">↻</button>
+            <button class="touch-btn" onclick="triggerKey('down')">▼</button>
+            <button class="touch-btn" onclick="triggerKey('right')">▶</button>
+            <button class="touch-btn" onclick="triggerKey('drop')">⤓</button>
+        </div>
+        <div class="controls-hint">
+            Keyboard: <b>← →</b> Move | <b>↑</b> Rotate | <b>↓</b> Soft Drop | <b>Space</b> Hard Drop
+        </div>
+    </div>
+
+    <script>
+    // Audio synthesizer for pop sound
+    let audioCtx = null;
+    function playBeep(freq = 440, type = "triangle", duration = 0.08) {
+        try {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === "suspended") audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        } catch (e) {}
+    }
+
+    var COLS = 10, ROWS = 20;
+var board = [];
+var lose;
+var interval;
+var intervalRender;
+var current; // current moving shape
+var currentX, currentY; // position of current shape
+var freezed; // is current shape settled on the board?
+var shapes = [
+    [ 1, 1, 1, 1 ],
+    [ 1, 1, 1, 0,
+      1 ],
+    [ 1, 1, 1, 0,
+      0, 0, 1 ],
+    [ 1, 1, 0, 0,
+      1, 1 ],
+    [ 1, 1, 0, 0,
+      0, 1, 1 ],
+    [ 0, 1, 1, 0,
+      1, 1 ],
+    [ 0, 1, 0, 0,
+      1, 1, 1 ]
+];
+var colors = [
+    'cyan', 'orange', 'blue', 'yellow', 'red', 'green', 'purple'
+];
+
+// creates a new 4x4 shape in global variable 'current'
+// 4x4 so as to cover the size when the shape is rotated
+function newShape() {
+    var id = Math.floor( Math.random() * shapes.length );
+    var shape = shapes[ id ]; // maintain id for color filling
+
+    current = [];
+    for ( var y = 0; y < 4; ++y ) {
+        current[ y ] = [];
+        for ( var x = 0; x < 4; ++x ) {
+            var i = 4 * y + x;
+            if ( typeof shape[ i ] != 'undefined' && shape[ i ] ) {
+                current[ y ][ x ] = id + 1;
+            }
+            else {
+                current[ y ][ x ] = 0;
+            }
+        }
+    }
+    
+    // new shape starts to move
+    freezed = false;
+    // position where the shape will evolve
+    currentX = 5;
+    currentY = 0;
+}
+
+// clears the board
+function init() {
+    for ( var y = 0; y < ROWS; ++y ) {
+        board[ y ] = [];
+        for ( var x = 0; x < COLS; ++x ) {
+            board[ y ][ x ] = 0;
+        }
+    }
+}
+
+// keep the element moving down, creating new shapes and clearing lines
+function tick() {
+    if ( valid( 0, 1 ) ) {
+        ++currentY;
+    }
+    // if the element settled
+    else {
+        freeze();
+        valid(0, 1);
+        clearLines();
+        if (lose) {
+            clearAllIntervals();
+            return false;
+        }
+        newShape();
+    }
+}
+
+// stop shape at its position and fix it to board
+function freeze() {
+    for ( var y = 0; y < 4; ++y ) {
+        for ( var x = 0; x < 4; ++x ) {
+            if ( current[ y ][ x ] ) {
+                board[ y + currentY ][ x + currentX ] = current[ y ][ x ];
+            }
+        }
+    }
+    freezed = true;
+}
+
+// returns rotates the rotated shape 'current' perpendicularly anticlockwise
+function rotate( current ) {
+    var newCurrent = [];
+    for ( var y = 0; y < 4; ++y ) {
+        newCurrent[ y ] = [];
+        for ( var x = 0; x < 4; ++x ) {
+            newCurrent[ y ][ x ] = current[ 3 - x ][ y ];
+        }
+    }
+
+    return newCurrent;
+}
+
+// check if any lines are filled and clear them
+function clearLines() {
+    for ( var y = ROWS - 1; y >= 0; --y ) {
+        var rowFilled = true;
+        for ( var x = 0; x < COLS; ++x ) {
+            if ( board[ y ][ x ] == 0 ) {
+                rowFilled = false;
+                break;
+            }
+        }
+        if ( rowFilled ) {
+            document.getElementById( 'clearsound' ).play();
+            for ( var yy = y; yy > 0; --yy ) {
+                for ( var x = 0; x < COLS; ++x ) {
+                    board[ yy ][ x ] = board[ yy - 1 ][ x ];
+                }
+            }
+            ++y;
+        }
+    }
+}
+
+function keyPress( key ) {
+    switch ( key ) {
+        case 'left':
+            if ( valid( -1 ) ) {
+                --currentX;
+            }
+            break;
+        case 'right':
+            if ( valid( 1 ) ) {
+                ++currentX;
+            }
+            break;
+        case 'down':
+            if ( valid( 0, 1 ) ) {
+                ++currentY;
+            }
+            break;
+        case 'rotate':
+            var rotated = rotate( current );
+            if ( valid( 0, 0, rotated ) ) {
+                current = rotated;
+            }
+            break;
+        case 'drop':
+            while( valid(0, 1) ) {
+                ++currentY;
+            }
+            tick();
+            break;
+    }
+}
+
+// checks if the resulting position of current shape will be feasible
+function valid( offsetX, offsetY, newCurrent ) {
+    offsetX = offsetX || 0;
+    offsetY = offsetY || 0;
+    offsetX = currentX + offsetX;
+    offsetY = currentY + offsetY;
+    newCurrent = newCurrent || current;
+
+    for ( var y = 0; y < 4; ++y ) {
+        for ( var x = 0; x < 4; ++x ) {
+            if ( newCurrent[ y ][ x ] ) {
+                if ( typeof board[ y + offsetY ] == 'undefined'
+                  || typeof board[ y + offsetY ][ x + offsetX ] == 'undefined'
+                  || board[ y + offsetY ][ x + offsetX ]
+                  || x + offsetX < 0
+                  || y + offsetY >= ROWS
+                  || x + offsetX >= COLS ) {
+                    if (offsetY == 1 && freezed) {
+                        lose = true; // lose if the current shape is settled at the top most row
+                        document.getElementById('playbutton').disabled = false;
+                    } 
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
+function playButtonClicked() {
+    newGame();
+    document.getElementById("playbutton").disabled = true;
+}
+
+function newGame() {
+    clearAllIntervals();
+    intervalRender = setInterval( render, 30 );
+    init();
+    newShape();
+    lose = false;
+    interval = setInterval( tick, 400 );
+}
+
+function clearAllIntervals(){
+    clearInterval( interval );
+    clearInterval( intervalRender );
+}
+
+    // Enhance colors for neon theme
+    colors = [
+        "#00f0ff", "#ff8800", "#0088ff", "#ffee00", "#ff0055", "#00ff66", "#aa00ff"
+    ];
+
+    var canvas = document.getElementsByTagName( 'canvas' )[ 0 ];
+var ctx = canvas.getContext( '2d' );
+var W = 300, H = 600;
+var BLOCK_W = W / COLS, BLOCK_H = H / ROWS;
+
+// draw a single square at (x, y)
+function drawBlock( x, y ) {
+    ctx.fillRect( BLOCK_W * x, BLOCK_H * y, BLOCK_W - 1 , BLOCK_H - 1 );
+    ctx.strokeRect( BLOCK_W * x, BLOCK_H * y, BLOCK_W - 1 , BLOCK_H - 1 );
+}
+
+// draws the board and the moving shape
+function render() {
+    ctx.clearRect( 0, 0, W, H );
+
+    ctx.strokeStyle = 'black';
+    for ( var x = 0; x < COLS; ++x ) {
+        for ( var y = 0; y < ROWS; ++y ) {
+            if ( board[ y ][ x ] ) {
+                ctx.fillStyle = colors[ board[ y ][ x ] - 1 ];
+                drawBlock( x, y );
+            }
+        }
+    }
+
+    ctx.fillStyle = 'red';
+    ctx.strokeStyle = 'black';
+    for ( var y = 0; y < 4; ++y ) {
+        for ( var x = 0; x < 4; ++x ) {
+            if ( current[ y ][ x ] ) {
+                ctx.fillStyle = colors[ current[ y ][ x ] - 1 ];
+                drawBlock( currentX + x, currentY + y );
+            }
+        }
+    }
+}
+
+    // Custom neon block rendering
+    function drawBlock( x, y ) {
+        ctx.save();
+        ctx.shadowColor = ctx.fillStyle;
+        ctx.shadowBlur = 6;
+        ctx.fillRect( BLOCK_W * x + 1, BLOCK_H * y + 1, BLOCK_W - 2 , BLOCK_H - 2 );
+        ctx.restore();
+    }
+
+    document.body.onkeydown = function( e ) {
+    var keys = {
+        37: 'left',
+        39: 'right',
+        40: 'down',
+        38: 'rotate',
+        32: 'drop'
+    };
+    if ( typeof keys[ e.keyCode ] != 'undefined' ) {
+        keyPress( keys[ e.keyCode ] );
+        render();
+    }
+};
+
+
+    function triggerKey(action) {
+        if (!lose && typeof keyPress !== "undefined") {
+            keyPress(action);
+            render();
+            playBeep(action === "drop" ? 220 : 440, "sine", 0.05);
+        }
+    }
+    </script>
+</body>
+</html>

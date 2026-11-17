@@ -124,9 +124,9 @@ test("curated imports publish real archives, preserve versions, and retain membe
   const submitted = await (await f.submit(user)).json();
   await approve(f, user, submitted.id, submitted.version_id);
   const result = await importCollection(f.store, { replaceDemos: true });
-  assert.deepEqual(result, { works: 7, versions: 10 });
+  assert.deepEqual(result, { works: 12, versions: 20 });
   let catalog = await (await f.request("/api/works")).json();
-  assert.equal(catalog.works.length, 8);
+  assert.equal(catalog.works.length, 13);
   assert.ok(catalog.works.some((work) => work.id === submitted.id));
   assert.ok(!catalog.works.some((work) => work.id === "tiny-sail"));
   assert.equal(

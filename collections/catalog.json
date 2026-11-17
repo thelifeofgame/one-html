@@ -146,5 +146,120 @@
         "source_note": "Unmodified HTML from OpenAI's official gpt-5-coding-examples repository."
       }
     ]
+  },
+  {
+    "id": "q1k3",
+    "title": "Q1K3 - 13KB WebGL 3D FPS",
+    "title_zh": "Q1K3 · 13KB 复古 3D 射击",
+    "description": "An homage to 1996's Quake packed into less than 13KB for js13kGames. Features a custom WebGL engine, dynamic lighting, 2 levels, 5 monsters, weapons and procedural audio.",
+    "description_zh": "致敬 1996 年 Quake 初代的 13KB 极客奇迹之作。自研轻量 WebGL 引擎、动态光照与碰撞检测，内含双关卡、五种敌人怪物、武器拾取与完整自研音效。WASD 移动，鼠标瞄准射击。",
+    "category": "game",
+    "credit": "Dominic Szablewski · PhobosLab",
+    "source_url": "https://github.com/phoboslab/q1k3",
+    "versions": [
+      {
+        "file": "q1k3.original.html",
+        "sha256": "8599767f7be52140766b69cdc2173a29561bf7fad4b7e028111668e71b767a73",
+        "source_note": "Original standalone build by Dominic Szablewski, licensed under MIT. js13kGames 2021 Entry."
+      },
+      {
+        "file": "q1k3.play.html",
+        "sha256": "8599767f7be52140766b69cdc2173a29561bf7fad4b7e028111668e71b767a73",
+        "variant": "adapted",
+        "source_note": "Self-contained offline playable version matching the js13kGames release."
+      }
+    ]
+  },
+  {
+    "id": "webgl-fluid",
+    "title": "WebGL Fluid Simulation",
+    "title_zh": "WebGL Fluid · 霓虹流体动力学",
+    "description": "A gorgeous, interactive real-time fluid simulation on GPU. Drag to swirl vibrant multi-colored smoke and liquid with customizable bloom and physics parameters.",
+    "description_zh": "惊艳全网的 WebGL GPU 实时流体物理模拟。轻按或拖拽屏幕即可激荡出璀璨的流体烟雾与炫光倒影，支持多点触控与参数自由调节。",
+    "category": "visual",
+    "credit": "Pavel Dobryakov · PavelDoGreat",
+    "source_url": "https://github.com/PavelDoGreat/WebGL-Fluid-Simulation",
+    "versions": [
+      {
+        "file": "webgl-fluid.original.html",
+        "sha256": "fb0c28d60300756d6794ca0e46ebd0b2f1776aef859973d6b05b21f5488eef9a",
+        "source_note": "Single-file bundled edition based on PavelDoGreat's MIT open-source repository."
+      },
+      {
+        "file": "webgl-fluid.play.html",
+        "sha256": "fb0c28d60300756d6794ca0e46ebd0b2f1776aef859973d6b05b21f5488eef9a",
+        "variant": "adapted",
+        "source_note": "Offline standalone HTML build bundling dat.gui.js and WebGL fluid shaders."
+      }
+    ]
+  },
+  {
+    "id": "underrun",
+    "title": "Underrun - Twin-Stick Sci-Fi Shooter",
+    "title_zh": "Underrun · 像素双摇杆地牢射击",
+    "description": "A twin-stick top-down shooter built in WebGL under 13KB. Navigate a dark infested space station with dynamic raycasted shadows and intense sound effects.",
+    "description_zh": "在 13KB 体积内实现的 WebGL 太空站地牢射击。拥有实时动态光影投射、激光武器、终端黑客系统与合成器音效。WASD 移动、鼠标瞄准射击。",
+    "category": "game",
+    "credit": "Dominic Szablewski · PhobosLab",
+    "source_url": "https://github.com/phoboslab/underrun",
+    "versions": [
+      {
+        "file": "underrun.original.html",
+        "sha256": "a258cce8ef7e3b6a779a40a901471f219134d455c8bbdf42cb83325c65983557",
+        "source_note": "js13kGames 2018 standalone winner build under MIT License."
+      },
+      {
+        "file": "underrun.play.html",
+        "sha256": "a258cce8ef7e3b6a779a40a901471f219134d455c8bbdf42cb83325c65983557",
+        "variant": "adapted",
+        "source_note": "Zero-dependency offline playable edition matching author release."
+      }
+    ]
+  },
+  {
+    "id": "canvas-tetris",
+    "title": "Neon Canvas Tetris",
+    "title_zh": "Neon Tetris · 极简霓虹方块",
+    "description": "A polished, self-contained HTML5 Canvas Tetris with clean animations, responsive controls, and arcade aesthetics without external dependencies.",
+    "description_zh": "高品质纯单文件 HTML5 Canvas 俄罗斯方块。纯净无外链广告，具有街机霓虹质感、灵敏的按键与触控响应，手机和桌面端即开即玩。",
+    "category": "game",
+    "credit": "Dionysis Zindros · dionyziz",
+    "source_url": "https://github.com/dionyziz/canvas-tetris",
+    "versions": [
+      {
+        "file": "canvas-tetris.original.html",
+        "sha256": "20b9f6060a19679e8119315bcd4bb5bb0cbb5164583b7ed246abff9e633f7dee",
+        "source_note": "Offline standalone HTML build, licensed under MIT."
+      },
+      {
+        "file": "canvas-tetris.play.html",
+        "sha256": "20b9f6060a19679e8119315bcd4bb5bb0cbb5164583b7ed246abff9e633f7dee",
+        "variant": "adapted",
+        "source_note": "Modernized single-file edition with glowing neon UI, Web Audio synth and mobile touch controls."
+      }
+    ]
+  },
+  {
+    "id": "sand-spiel-lite",
+    "title": "Falling Sand Physics Sandbox",
+    "title_zh": "Falling Sand · 细胞物理落沙模拟",
+    "description": "A classic cellular automaton particle sandbox. Draw sand, water, fire, wood and acid to watch them interact with realistic physical and chemical rules.",
+    "description_zh": "经典的细胞自动机粒子落沙物理玩具。随手涂抹沙粒、水流、火焰、木板与酸液，观察它们在像素网格中的重力流动与生化连锁反应。",
+    "category": "visual",
+    "credit": "Open Source Community · MIT / CC0",
+    "source_url": "https://github.com/Mahnoor-Zaffar/The-2D-Falling-Sand-Physics-Simulator",
+    "versions": [
+      {
+        "file": "sand-spiel.original.html",
+        "sha256": "6db7b14dbde0e311780d7913d765e85e07aaca5685f7d906e31a4a57badcd4cf",
+        "source_note": "Single-file lightweight physics canvas simulation under MIT License."
+      },
+      {
+        "file": "sand-spiel.play.html",
+        "sha256": "6db7b14dbde0e311780d7913d765e85e07aaca5685f7d906e31a4a57badcd4cf",
+        "variant": "adapted",
+        "source_note": "Optimized single-file falling sand engine with multiple element brushes."
+      }
+    ]
   }
 ]
