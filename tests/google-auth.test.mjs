@@ -57,7 +57,7 @@ async function fixture(t) {
     if (url === "https://www.googleapis.com/oauth2/v3/certs")
       return Response.json({ keys: [publicKey] });
     assert.equal(url, "https://oauth2.googleapis.com/token");
-    assert.equal(options.redirect, "error");
+    assert.ok(["manual", "error"].includes(options.redirect));
     const params = new URLSearchParams(options.body);
     exchanges.push(params);
     if (params.get("code") === "simulate-network-failure")

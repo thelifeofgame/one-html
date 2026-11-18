@@ -226,7 +226,7 @@ export async function finishGoogleLogin(request, env) {
   try {
     const response = await fetch(TOKEN_URL, {
       method: "POST",
-      redirect: "error",
+      redirect: "manual",
       signal: controller.signal,
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
