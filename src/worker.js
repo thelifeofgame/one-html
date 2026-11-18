@@ -1,3 +1,4 @@
+import { getWorkEnrichedDetails } from "./seo-meta.js";
 import {
   hash,
   passwordHash,
@@ -843,8 +844,8 @@ async function renderWorkDetail(work, env, siteOrigin) {
   const baseAsset = await env.ASSETS.fetch(new Request(`${siteOrigin}/index.html`));
   const baseHtml = await baseAsset.text();
 
+  const details = getWorkEnrichedDetails(work);
   const titleText = `${work.title} — OneHTML`;
-  const descText = work.description || "Discover little games, playful experiments, and useful tools on OneHTML.";
   const workUrl = `${siteOrigin}/work/${work.id}`;
   const coverUrl = resolveCoverUrl(work, siteOrigin);
 
@@ -852,33 +853,34 @@ async function renderWorkDetail(work, env, siteOrigin) {
     "@context": "https://schema.org",
     "@type": work.category === "game" ? "VideoGame" : "WebApplication",
     "name": work.title,
-    "description": descText,
+    "description": details.metaDescription,
     "url": workUrl,
     "image": coverUrl,
+    "keywords": details.tags.join(", "),
     "applicationCategory": work.category === "game" ? "GameApplication" : "BrowserApplication",
     "operatingSystem": "Any",
     "offers": {
       "@type": "Offer",
       "price": "0",
-      "priceCurrency": "USD"
+      "priceCurrency": "USD",
     },
     "author": {
       "@type": "Person",
-      "name": work.credit || "OneHTML Creator"
-    }
+      "name": work.credit || "OneHTML Creator",
+    },
   };
 
   const seoTags = [
-    `<meta name="description" content="${htmlEscape(descText)}" />`,
+    `<meta name="description" content="${htmlEscape(details.metaDescription)}" />`,
     `<link rel="canonical" href="${htmlEscape(workUrl)}" />`,
     `<meta property="og:type" content="website" />`,
     `<meta property="og:title" content="${htmlEscape(titleText)}" />`,
-    `<meta property="og:description" content="${htmlEscape(descText)}" />`,
+    `<meta property="og:description" content="${htmlEscape(details.metaDescription)}" />`,
     `<meta property="og:url" content="${htmlEscape(workUrl)}" />`,
     `<meta property="og:image" content="${htmlEscape(coverUrl)}" />`,
     `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${htmlEscape(titleText)}" />`,
-    `<meta name="twitter:description" content="${htmlEscape(descText)}" />`,
+    `<meta name="twitter:description" content="${htmlEscape(details.metaDescription)}" />`,
     `<meta name="twitter:image" content="${htmlEscape(coverUrl)}" />`,
     `<script type="application/ld+json">${JSON.stringify(schema)}<\/script>`,
   ].join("\n    ");
@@ -889,16 +891,100 @@ async function renderWorkDetail(work, env, siteOrigin) {
 
   modified = modified.replace("<head>", `<head>\n    ${seoTags}`);
 
-  const semanticPrerender = `
-    <noscript>
-      <article class="work-prerender">
-        <h1>${htmlEscape(work.title)}</h1>
-        <p>${htmlEscape(descText)}</p>
-        <p>Category: ${htmlEscape(work.category || "game")} · Created by: ${htmlEscape(work.credit || "OneHTML Creator")}</p>
-        <p><a href="${htmlEscape(workUrl)}">Play ${htmlEscape(work.title)} on OneHTML</a></p>
+  const otherWorks = (
+    await env.DB.prepare(
+      "SELECT id, title, description, category, credit FROM works WHERE status='published' AND id != ? ORDER BY created_at DESC LIMIT 6",
+    )
+      .bind(work.id)
+      .all()
+  ).results || [];
+
+  const otherLinks = otherWorks
+    .map(
+      (w) =>
+        `<li><a href="${siteOrigin}/work/${w.id}"><strong>${htmlEscape(w.title)}</strong></a> (${htmlEscape(w.category || "app")}) - ${htmlEscape(w.description || "")}</li>`,
+    )
+    .join("\n            ");
+
+  const showcaseHtml = `
+    <section class="work-showcase container" id="work-showcase">
+      <div class="work-showcase-header">
+        <nav class="work-breadcrumb" aria-label="Breadcrumb">
+          <a href="${siteOrigin}/">← All Creations</a> / <span>${htmlEscape(work.category || "app")}</span>
+        </nav>
+        <h1 class="work-title">${htmlEscape(work.title)}</h1>
+        <div class="work-byline">
+          <span>Created by <strong>${htmlEscape(work.credit || "OneHTML Creator")}</strong></span>
+          ${work.license ? `<span>· License: <strong>${htmlEscape(work.license)}</strong></span>` : ""}
+          ${work.source_url ? `<span>· <a href="${htmlEscape(work.source_url)}" target="_blank" rel="noopener noreferrer">Source Code ↗</a></span>` : ""}
+        </div>
+      </div>
+
+      <div class="player-stage" id="player-stage" data-work-id="${htmlEscape(work.id)}">
+        <div class="work-art"><img src="${htmlEscape(coverUrl)}" alt="${htmlEscape(work.title)}" loading="lazy" decoding="async"></div>
+        <div class="launch-overlay">
+          <button class="button button-primary" data-launch="${htmlEscape(work.id)}">
+            <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            <span>Play ${htmlEscape(work.title)}</span>
+          </button>
+          <small>Click to start · Runs inside isolated sandbox</small>
+        </div>
+      </div>
+
+      <article class="work-static-details">
+        <div class="work-details-main">
+          <h2>About ${htmlEscape(work.title)}</h2>
+          <div class="work-description-full">
+            ${details.sentences.map((s) => `<p>${htmlEscape(s)}</p>`).join("\n            ")}
+          </div>
+          <div class="work-tech-section">
+            <h3>Technical Tags</h3>
+            <div class="work-tech-tags">
+              ${details.tags.map((t) => `<span class="tech-tag">${htmlEscape(t)}</span>`).join("\n              ")}
+            </div>
+          </div>
+        </div>
+        <aside class="detail-meta">
+          <dl>
+            <div>
+              <dt>Created by</dt>
+              <dd>${htmlEscape(work.credit || "OneHTML Creator")}</dd>
+            </div>
+            <div>
+              <dt>Category</dt>
+              <dd>${htmlEscape(work.category || "game")}</dd>
+            </div>
+            <div>
+              <dt>License</dt>
+              <dd>${htmlEscape(work.license || "Not specified")}</dd>
+            </div>
+            <div>
+              <dt>Source</dt>
+              <dd>${work.source_url ? `<a href="${htmlEscape(work.source_url)}" target="_blank" rel="noopener noreferrer">Visit original source ↗</a>` : "Submitted to OneHTML"}</dd>
+            </div>
+            <div>
+              <dt>Format</dt>
+              <dd>Single-File HTML · Browser Native</dd>
+            </div>
+            <div>
+              <dt>Runtime Sandbox</dt>
+              <dd>Isolated domain · noindex, nofollow</dd>
+            </div>
+          </dl>
+        </aside>
       </article>
-    </noscript>`;
-  modified = modified.replace('<main id="main-content">', `<main id="main-content">\n    ${semanticPrerender}`);
+      ${otherWorks.length ? `
+      <div class="related-works-prerender">
+        <noscript>
+          <h3>Explore More Single-File HTML Creations</h3>
+          <ul>
+            ${otherLinks}
+          </ul>
+        </noscript>
+      </div>` : ""}
+    </section>`;
+
+  modified = modified.replace('<section class="hero container" id="hero"></section>', showcaseHtml);
 
   const headers = new Headers(baseAsset.headers);
   headers.set("Content-Type", "text/html; charset=utf-8");
@@ -927,8 +1013,8 @@ async function renderHome(env, siteOrigin) {
     ).all()
   ).results || [];
 
-  const titleText = "OneHTML — Small files. Big possibilities.";
-  const descText = "Discover little games, playful experiments, and useful tools. A world of possibilities, one HTML at a time.";
+  const titleText = "OneHTML - Run, Host & Share Single-File HTML5 & AI Web Apps Online";
+  const descText = "Run, host & share single-file HTML5 & AI web apps online. Discover interactive web tools, lightweight games, and creative experiments in an isolated sandbox.";
   const homeUrl = `${siteOrigin}/`;
   const defaultOgImage = `${siteOrigin}/covers/q1k3.png`;
 
@@ -946,6 +1032,7 @@ async function renderHome(env, siteOrigin) {
   };
 
   const seoTags = [
+    `<meta name="description" content="${htmlEscape(descText)}" />`,
     `<link rel="canonical" href="${htmlEscape(homeUrl)}" />`,
     `<meta property="og:type" content="website" />`,
     `<meta property="og:title" content="${htmlEscape(titleText)}" />`,
@@ -959,7 +1046,11 @@ async function renderHome(env, siteOrigin) {
     `<script type="application/ld+json">${JSON.stringify(schema)}<\/script>`,
   ].join("\n    ");
 
-  let modified = baseHtml.replace("<head>", `<head>\n    ${seoTags}`);
+  let modified = baseHtml
+    .replace(/<title>[^<]*<\/title>/i, `<title>${htmlEscape(titleText)}<\/title>`)
+    .replace(/<meta\s+name=['"]description['"][^>]*\/?>/i, "");
+
+  modified = modified.replace("<head>", `<head>\n    ${seoTags}`);
 
   const prerenderLinks = works
     .map(

@@ -139,7 +139,7 @@ const statusName = (value) =>
     declined: t("Declined", "未接受"),
   })[value] || value;
 const artwork = (work) =>
-  `<div class="work-art">${/^\/covers\/[a-z0-9-]+\.png$/.test(work.cover) ? `<img src="${esc(work.cover)}" alt="" loading="lazy" decoding="async">` : art[work.cover] || art.custom}</div>`;
+  `<div class="work-art">${/^\/covers\/[a-z0-9-]+\.(png|webp)$/.test(work.cover) ? `<img src="${esc(work.cover)}" alt="" loading="lazy" decoding="async">` : art[work.cover] || art.custom}</div>`;
 const closeButton = () =>
   `<button class="close-button" data-action="close" aria-label="${t("Close", "关闭")}">${icon("close")}</button>`;
 let fieldIndex = 0;
@@ -409,13 +409,67 @@ async function readUpload(file) {
   filename.value = file.name;
   toast(t("HTML file loaded.", "HTML 文件已读取。"));
 }
+const WORK_TAGS_MAP = {
+  q1k3: ["#WebGL", "#ThreeJS", "#HTML5Game", "#GameDev", "#WebAudio", "#SingleFileHTML"],
+  underrun: ["#WebGL", "#Canvas", "#HTML5Game", "#GameDev", "#WebAudio", "#SingleFileHTML"],
+  "canvas-tetris": ["#Canvas", "#HTML5Game", "#JavaScript", "#Arcade", "#HTML5", "#SingleFileHTML"],
+  saltline: ["#ThreeJS", "#WebGL", "#HTML5Game", "#AIWebApps", "#FPS", "#SingleFileHTML"],
+  mosswing: ["#ThreeJS", "#WebGL", "#GenerativeArt", "#AIWebApps", "#Procedural3D", "#SingleFileHTML"],
+  "openai-asteroids": ["#Canvas", "#HTML5Game", "#AIWebApps", "#SpaceShooter", "#HTML5", "#SingleFileHTML"],
+  "webgl-fluid": ["#WebGL", "#GLSL", "#Canvas", "#FluidSimulation", "#PhysicsEngine", "#SingleFileHTML"],
+  "sand-spiel-lite": ["#Canvas", "#PhysicsEngine", "#CellularAutomata", "#Simulation", "#SingleFileHTML"],
+  "london-railway": ["#ThreeJS", "#WebGL", "#Simulation", "#3DScene", "#AIWebApps", "#SingleFileHTML"],
+  "openai-ocean": ["#ThreeJS", "#WebGL", "#Shader", "#Simulation", "#AIWebApps", "#SingleFileHTML"],
+  "openai-solar": ["#ThreeJS", "#WebGL", "#3DAnimation", "#Educational", "#AIWebApps", "#SingleFileHTML"],
+  "openai-lights": ["#Canvas", "#WebAudio", "#AudioAPI", "#GenerativeArt", "#AIWebApps", "#SingleFileHTML"],
+};
+
+function getWorkTechTags(work) {
+  if (WORK_TAGS_MAP[work.id]) return WORK_TAGS_MAP[work.id];
+  const text = `${work.title} ${work.description || ""} ${work.credit || ""}`.toLowerCase();
+  const tags = new Set();
+  if (/three(\.js)?|3d|orbit|scene|glsl/.test(text)) {
+    tags.add("#ThreeJS");
+    tags.add("#WebGL");
+  } else if (/webgl|shader|rasterizer/.test(text)) {
+    tags.add("#WebGL");
+  }
+  if (/canvas|2d|pixel|arcade|tetris/.test(text)) {
+    tags.add("#Canvas");
+  }
+  if (/audio|sound|music|synthesizer|beat/.test(text)) {
+    tags.add("#WebAudio");
+    tags.add("#AudioAPI");
+  }
+  if (/gpt|openai|claude|ai|gemini|llm|deepseek/.test(text)) {
+    tags.add("#AIWebApps");
+  }
+  if (work.category === "game") {
+    tags.add("#HTML5Game");
+    tags.add("#GameDev");
+  } else if (work.category === "visual") {
+    tags.add("#GenerativeArt");
+    tags.add("#Canvas");
+  } else {
+    tags.add("#WebTool");
+    tags.add("#Productivity");
+  }
+  tags.add("#HTML5");
+  tags.add("#SingleFileHTML");
+  if (!tags.has("#ThreeJS") && !tags.has("#Canvas") && !tags.has("#WebGL")) {
+    tags.add("#Canvas");
+  }
+  return Array.from(tags);
+}
+
 async function openWork(workId) {
   const work = state.works.find((item) => item.id === workId);
   if (!work) return;
   state.work = work;
   history.replaceState(null, "", `#work/${work.id}`);
+  const tags = getWorkTechTags(work);
   openModal(
-    `<div class="player-header"><div class="player-heading"><span class="player-badge">${artwork(work)}</span><div><h2>${esc(title(work))}</h2><p>${esc(work.credit)} · ${categoryName(work.category)}${work.original ? " · " + t("Original demo", "本站原创示例") : ""}</p></div></div>${closeButton()}</div><div class="player-stage" id="player-stage">${artwork(work)}<div class="launch-overlay">${button(t("Let’s play", "开始体验"), "launch", "button-primary", "play")}<small>${t("Click to start · Sound may be enabled", "点击后运行 · 部分作品带有声音")}</small></div></div><div class="player-actions"><button class="button button-outline ${work.liked ? "active" : ""}" data-like="${work.id}" aria-pressed="${Boolean(work.liked)}">${icon("heart")}<span>${work.likes}</span></button><button class="button button-outline" data-save="${work.id}" aria-pressed="${Boolean(work.saved)}">${icon("bookmark")}<span>${work.saved ? t("Saved", "已收藏") : t("Save", "收藏")}</span></button>${button(t("Share", "分享"), "share", "button-outline", "share")}${button(t("Fullscreen", "全屏"), "fullscreen", "button-outline", "fullscreen")}<button class="report-button" data-action="report">${t("Report an issue", "举报问题")}</button></div><div class="detail-columns"><div><p class="detail-description">${esc(description(work))}</p><div class="detail-label">${t("A little conversation", "聊聊这个作品")}</div>${state.user ? `<form id="comment-form" class="comment-form"><textarea name="body" maxlength="2000" placeholder="${t("What do you think?", "你觉得怎么样？")}" aria-label="${t("Your comment", "你的评论")}" required></textarea><button class="button button-dark" type="submit">${t("Post", "发送")}</button></form>` : `<p class="modal-copy"><button class="text-button" data-action="login">${t("Sign in to join the conversation →", "登录，加入讨论 →")}</button></p>`}<div id="comments"><p class="no-comments">${t("Loading comments…", "正在加载评论…")}</p></div></div><aside class="detail-meta"><dl><div><dt>${t("Created by", "创作者")}</dt><dd>${esc(work.credit)}</dd></div><div><dt>${t("License", "作品许可")}</dt><dd>${esc(work.license)}</dd></div><div><dt>${t("Source", "作品来源")}</dt><dd>${work.source_url ? `<a href="${esc(work.source_url)}" target="_blank" rel="noopener noreferrer">${t("Visit original source ↗", "查看原始来源 ↗")}</a>` : work.original ? t("OneHTML original example", "OneHTML 本站原创示例") : t("Submitted by creator", "创作者投稿")}</dd></div><div><dt>${t("Format", "作品格式")}</dt><dd>${t("One HTML · Runs in your browser", "单个 HTML · 浏览器运行")}</dd></div></dl></aside></div>`,
+    `<div class="player-header"><div class="player-heading"><span class="player-badge">${artwork(work)}</span><div><h2>${esc(title(work))}</h2><p>${esc(work.credit)} · ${categoryName(work.category)}${work.original ? " · " + t("Original demo", "本站原创示例") : ""}</p></div></div>${closeButton()}</div><div class="player-stage" id="player-stage">${artwork(work)}<div class="launch-overlay">${button(t("Let’s play", "开始体验"), "launch", "button-primary", "play")}<small>${t("Click to start · Sound may be enabled", "点击后运行 · 部分作品带有声音")}</small></div></div><div class="player-actions"><button class="button button-outline ${work.liked ? "active" : ""}" data-like="${work.id}" aria-pressed="${Boolean(work.liked)}">${icon("heart")}<span>${work.likes}</span></button><button class="button button-outline" data-save="${work.id}" aria-pressed="${Boolean(work.saved)}">${icon("bookmark")}<span>${work.saved ? t("Saved", "已收藏") : t("Save", "收藏")}</span></button>${button(t("Share", "分享"), "share", "button-outline", "share")}${button(t("Fullscreen", "全屏"), "fullscreen", "button-outline", "fullscreen")}<button class="report-button" data-action="report">${t("Report an issue", "举报问题")}</button></div><div class="detail-columns"><div><p class="detail-description">${esc(description(work))}</p><div class="work-tech-tags" style="margin-bottom:16px;">${tags.map((t) => `<span class="tech-tag">${esc(t)}</span>`).join(" ")}</div><div class="detail-label">${t("A little conversation", "聊聊这个作品")}</div>${state.user ? `<form id="comment-form" class="comment-form"><textarea name="body" maxlength="2000" placeholder="${t("What do you think?", "你觉得怎么样？")}" aria-label="${t("Your comment", "你的评论")}" required></textarea><button class="button button-dark" type="submit">${t("Post", "发送")}</button></form>` : `<p class="modal-copy"><button class="text-button" data-action="login">${t("Sign in to join the conversation →", "登录，加入讨论 →")}</button></p>`}<div id="comments"><p class="no-comments">${t("Loading comments…", "正在加载评论…")}</p></div></div><aside class="detail-meta"><dl><div><dt>${t("Created by", "创作者")}</dt><dd>${esc(work.credit)}</dd></div><div><dt>${t("License", "作品许可")}</dt><dd>${esc(work.license)}</dd></div><div><dt>${t("Source", "作品来源")}</dt><dd>${work.source_url ? `<a href="${esc(work.source_url)}" target="_blank" rel="noopener noreferrer">${t("Visit original source ↗", "查看原始来源 ↗")}</a>` : work.original ? t("OneHTML original example", "OneHTML 本站原创示例") : t("Submitted by creator", "创作者投稿")}</dd></div><div><dt>${t("Format", "作品格式")}</dt><dd>${t("One HTML · Runs in your browser", "单个 HTML · 浏览器运行")}</dd></div></dl></aside></div>`,
     "wide",
     "work",
   );
@@ -1096,13 +1150,22 @@ load()
       } else if (state.user)
         toast(t("Signed in with Google.", "已使用 Google 登录。"));
     }
+    const pathMatch = location.pathname.match(/^\/work\/([a-z0-9-]+)$/);
     const match = location.hash.match(/^#work\/([a-z0-9-]+)$/);
     if (match) return openWork(match[1]);
+    if (pathMatch && $("#work-showcase") && $("#hero")) {
+      $("#hero").innerHTML = "";
+    }
   })
   .catch((error) => {
     $("#works").innerHTML =
       `<div class="empty-state"><h3>${t("The gallery is taking a moment.", "画廊暂时没有连接上。")}</h3><p>${esc(error.message)}</p><button class="button button-primary" data-action="reload">${t("Try again", "重新连接")}</button></div>`;
   });
-document.addEventListener("click", (event) => {
+document.addEventListener("click", async (event) => {
+  const launchBtn = event.target.closest("[data-launch]");
+  if (launchBtn) {
+    event.preventDefault();
+    return await openWork(launchBtn.dataset.launch);
+  }
   if (event.target.closest('[data-action="reload"]')) location.reload();
 });

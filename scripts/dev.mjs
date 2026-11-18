@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { readFile, writeFile, chmod } from "node:fs/promises";
+import { readFile, writeFile, chmod, stat } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import { resolve, extname } from "node:path";
 import { Readable } from "node:stream";
@@ -46,7 +46,10 @@ const types = {
   ".js": "text/javascript",
   ".svg": "image/svg+xml",
   ".png": "image/png",
+  ".webp": "image/webp",
   ".ico": "image/x-icon",
+  ".txt": "text/plain; charset=utf-8",
+  ".xml": "application/xml; charset=utf-8",
 };
 const ASSETS = {
   async fetch(request) {
@@ -57,20 +60,43 @@ const ASSETS = {
     } catch {
       return new Response("Bad request", { status: 400 });
     }
-    const file = resolve(
+    let file = resolve(
       root,
       "public",
       path === "/" ? "index.html" : "." + path,
     );
     if (!file.startsWith(resolve(root, "public") + "/"))
       return new Response("Forbidden", { status: 403 });
+
+    let ext = extname(file);
+    const headers = new Headers();
+
+    if (
+      path.startsWith("/covers/") &&
+      ext === ".png" &&
+      request.headers.get("accept")?.includes("image/webp")
+    ) {
+      const webpFile = file.slice(0, -4) + ".webp";
+      try {
+        await stat(webpFile);
+        file = webpFile;
+        ext = ".webp";
+        headers.set("Vary", "Accept");
+      } catch {}
+    }
+
+    if (path.startsWith("/covers/")) {
+      headers.set("Cache-Control", "public, max-age=2592000, immutable");
+    } else if ([".css", ".js", ".svg", ".ico", ".png", ".webp"].includes(ext)) {
+      headers.set("Cache-Control", "public, max-age=86400");
+    } else {
+      headers.set("Cache-Control", "no-cache");
+    }
+
     try {
-      return new Response(await readFile(file), {
-        headers: {
-          "Content-Type": types[extname(file)] || "application/octet-stream",
-          "Cache-Control": "no-cache",
-        },
-      });
+      const data = await readFile(file);
+      headers.set("Content-Type", types[ext] || "application/octet-stream");
+      return new Response(data, { headers });
     } catch {
       return new Response("Not found", { status: 404 });
     }
@@ -97,8 +123,14 @@ function server(demoOnly) {
         outgoing.end();
         return;
       }
-      if (host !== (demoOnly ? config.sandboxHost : config.siteHost)) {
-        outgoing.writeHead(403);
+      const isLoopbackHost = [
+        `127.0.0.1:${demoOnly ? sandboxPort : port}`,
+        `localhost:${demoOnly ? sandboxPort : port}`,
+        "127.0.0.1",
+        "localhost",
+      ].includes(host);
+      if (host !== (demoOnly ? config.sandboxHost : config.siteHost) && !isLoopbackHost) {
+        outgoing.writeHead(403, demoOnly ? { "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet" } : {});
         outgoing.end("Invalid host");
         return;
       }
@@ -137,12 +169,15 @@ function server(demoOnly) {
       const outgoingHeaders = Object.fromEntries(response.headers);
       const cookies = response.headers.getSetCookie();
       if (cookies.length) outgoingHeaders["set-cookie"] = cookies;
+      if (demoOnly) {
+        outgoingHeaders["x-robots-tag"] = outgoingHeaders["x-robots-tag"] || "noindex, nofollow, noarchive, nosnippet";
+      }
       outgoing.writeHead(response.status, outgoingHeaders);
       if (response.body) Readable.fromWeb(response.body).pipe(outgoing);
       else outgoing.end();
     } catch (error) {
       console.error(error.message);
-      outgoing.writeHead(500);
+      outgoing.writeHead(500, demoOnly ? { "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet" } : {});
       outgoing.end("Server error");
     }
   });
