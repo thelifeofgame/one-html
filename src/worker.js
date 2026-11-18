@@ -407,6 +407,7 @@ async function api(request, env, url) {
       );
       target = `${config.origin}/?auth=google`;
     } catch (error) {
+      console.error("[Google callback caught error]:", error.message || error, "authCode:", error.authCode, error.stack);
       const code = ["invalid", "expired", "cancelled", "unavailable"].includes(
         error.authCode,
       )

@@ -51,9 +51,11 @@ export function googleConfig(env) {
     return null;
   }
 }
+
 export function googleCookie(request, token = "") {
   return `onehtml_google=${token}; HttpOnly; SameSite=Lax; Path=/api/auth/google; Max-Age=${token ? 600 : 0}${new URL(request.url).protocol === "https:" ? "; Secure" : ""}`;
 }
+
 function requireConfig(request, env) {
   const config = googleConfig(env);
   if (!config)
@@ -63,6 +65,7 @@ function requireConfig(request, env) {
   if (new URL(request.url).origin !== config.origin) fail("invalid", 403);
   return config;
 }
+
 export async function startGoogleLogin(request, env) {
   const config = requireConfig(request, env);
   const state = randomToken(),
@@ -134,7 +137,7 @@ export async function verifyGoogleIdToken(
         "email_verified",
       ],
       maxTokenAge: "10m",
-      clockTolerance: 5,
+      clockTolerance: 30,
     });
     if (
       typeof payload.sub !== "string" ||
@@ -147,8 +150,16 @@ export async function verifyGoogleIdToken(
       typeof payload.email !== "string" ||
       payload.email.length > 320 ||
       !payload.email.includes("@")
-    )
+    ) {
+      console.error("[verifyGoogleIdToken payload validation failed]:", {
+        sub: Boolean(payload.sub),
+        nonceMatch: constantEqual(payload.nonce, nonce),
+        azpMatch: payload.azp === undefined || payload.azp === clientId,
+        email_verified: payload.email_verified,
+        email: Boolean(payload.email),
+      });
       fail("invalid");
+    }
     return {
       subject: payload.sub,
       email: payload.email,
@@ -157,7 +168,9 @@ export async function verifyGoogleIdToken(
           ? payload.name.trim().slice(0, 40)
           : "",
     };
-  } catch {
+  } catch (err) {
+    if (err.authCode) throw err;
+    console.error("[verifyGoogleIdToken failed]:", err.message || err);
     fail("invalid");
   }
 }
@@ -173,31 +186,43 @@ export async function finishGoogleLogin(request, env) {
     !/^[a-f0-9]{64}$/.test(state) ||
     !binding ||
     url.searchParams.getAll("state").length !== 1
-  )
+  ) {
+    console.warn("[finishGoogleLogin state/binding mismatch]:", {
+      hasState: Boolean(state),
+      hasBinding: Boolean(binding),
+    });
     fail("expired");
+  }
   const transaction = await env.DB.prepare(
     "DELETE FROM oauth_states WHERE state_hash=? AND binding_hash=? AND expires_at>? RETURNING nonce,code_verifier,redirect_uri",
   )
     .bind(await hash(state), await hash(binding), Date.now())
     .first();
-  if (!transaction || transaction.redirect_uri !== config.redirectUri)
+  if (!transaction || transaction.redirect_uri !== config.redirectUri) {
+    console.warn("[finishGoogleLogin transaction lookup failed]:", {
+      found: Boolean(transaction),
+      txRedirect: transaction?.redirect_uri,
+      configRedirect: config.redirectUri,
+    });
     fail("expired");
-  if (url.searchParams.has("error"))
-    fail(
-      url.searchParams.get("error") === "access_denied"
-        ? "cancelled"
-        : "invalid",
-    );
+  }
+  if (url.searchParams.has("error")) {
+    const oauthErr = url.searchParams.get("error");
+    console.warn("[Google redirected with error]:", oauthErr);
+    fail(oauthErr === "access_denied" ? "cancelled" : "invalid");
+  }
   const code = url.searchParams.get("code");
   if (
     !code ||
     code.length > 4096 ||
     url.searchParams.getAll("code").length !== 1
-  )
+  ) {
+    console.warn("[finishGoogleLogin invalid code parameter]");
     fail("invalid");
+  }
   let tokens;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
+  const timeout = setTimeout(() => controller.abort(), 15000);
   try {
     const response = await fetch(TOKEN_URL, {
       method: "POST",
@@ -213,16 +238,26 @@ export async function finishGoogleLogin(request, env) {
         grant_type: "authorization_code",
       }),
     });
-    if (!response.ok) fail("invalid");
+    if (!response.ok) {
+      const errBody = await response.text();
+      console.error(
+        "[Google OAuth token exchange error HTTP " + response.status + "]:",
+        errBody,
+      );
+      fail("invalid");
+    }
     tokens = await response.json();
   } catch (error) {
+    console.error("[OAuth exchange error]:", error.message || error, error.stack);
     if (error.authCode) throw error;
     fail("unavailable", 503);
   } finally {
     clearTimeout(timeout);
   }
-  if (typeof tokens.id_token !== "string" || tokens.id_token.length > 16000)
+  if (typeof tokens.id_token !== "string" || tokens.id_token.length > 16000) {
+    console.warn("[tokens missing id_token]");
     fail("invalid");
+  }
   const identity = await verifyGoogleIdToken(
     tokens.id_token,
     config.clientId,
@@ -251,9 +286,14 @@ export async function finishGoogleLogin(request, env) {
       "UPDATE auth_identities SET email=? WHERE provider='google' AND subject=?",
     ).bind(identity.email, identity.subject),
   ]);
-  return env.DB.prepare(
+  const user = await env.DB.prepare(
     "SELECT u.id,u.handle,u.display_name,u.role FROM users u JOIN auth_identities i ON i.user_id=u.id WHERE i.provider='google' AND i.subject=?",
   )
     .bind(identity.subject)
     .first();
+  if (!user) {
+    console.error("[Google login user resolution failed for subject]:", identity.subject);
+    fail("unavailable", 500);
+  }
+  return user;
 }
