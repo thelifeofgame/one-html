@@ -1202,3 +1202,9 @@ dialog.medium {
   background: var(--line);
   flex: 1;
 }
+
+@media (max-width: 700px) {
+  .header-stats {
+    display: none;
+  }
+}

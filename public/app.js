@@ -30,6 +30,7 @@ const icons = {
   fullscreen: '<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/>',
   share: '<path d="M12 16V3m-5 5 5-5 5 5M5 13v7h14v-7"/>',
   leaf: '<path d="M19 3C8 1 0 11 7 17s15-3 12-14ZM5 21l10-11"/>',
+  mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
 };
 const icon = (name) =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.visual}</svg>`;
@@ -48,6 +49,7 @@ const state = {
   adminTab: "works",
   sandboxOrigin: null,
   authProviders: { google: false },
+  visits: { total: 20000, last_24h: 1 },
 };
 let activePlayer = null,
   modalEpoch = 0;
@@ -212,6 +214,7 @@ async function load() {
   state.authProviders = account.auth || { google: false };
   state.works = collection.works;
   state.sandboxOrigin = collection.sandbox_origin;
+  if (collection.visits) state.visits = collection.visits;
   render();
 }
 function render() {
@@ -230,8 +233,11 @@ function render() {
         `<button class="nav-link ${state.view === view ? "active" : ""}" data-view="${view}">${label}</button>`,
     )
     .join("");
+  const vTotal = Number(state.visits?.total || 20000).toLocaleString();
+  const v24h = Number(state.visits?.last_24h || 1).toLocaleString();
+  const visitStatsHtml = `<div class="header-stats" title="${t("Visitors in last 24h / Total visitors", "过去 24 小时访问量 / 总访问量")}"><span class="stats-badge"><span class="stats-dot"></span><span class="stats-label">${t("24h", "24小时")}</span><strong>${v24h}</strong></span><span class="stats-divider">/</span><span class="stats-badge"><span class="stats-label">${t("Total", "总访问")}</span><strong>${vTotal}</strong></span></div>`;
   $("#header-actions").innerHTML =
-    `<button class="language-button" data-action="language" aria-label="${t("Switch to Chinese", "切换到英文")}">${icon("globe")}${t("中文", "EN")}</button>${state.user ? `<details class="profile"><summary><span class="avatar">${esc(state.user.display_name[0].toUpperCase())}</span>${esc(state.user.display_name)}</summary><div class="profile-menu"><button data-action="submissions">${t("My submissions", "我的投稿")}</button>${state.user.role === "admin" ? `<button data-action="admin">${t("Review desk", "审核后台")}</button>` : ""}<button data-action="logout">${t("Sign out", "退出登录")}</button></div></details>` : `<button class="text-button" data-action="login">${t("Sign in", "登录")}</button>`}${button(t("Submit a creation", "投稿作品"), "upload", "button-dark", "plus")}`;
+    `${visitStatsHtml}<button class="language-button" data-action="language" aria-label="${t("Switch to Chinese", "切换到英文")}">${icon("globe")}${t("中文", "EN")}</button>${state.user ? `<details class="profile"><summary><span class="avatar">${esc(state.user.display_name[0].toUpperCase())}</span>${esc(state.user.display_name)}</summary><div class="profile-menu"><button data-action="submissions">${t("My submissions", "我的投稿")}</button>${state.user.role === "admin" ? `<button data-action="admin">${t("Review desk", "审核后台")}</button>` : ""}<button data-action="logout">${t("Sign out", "退出登录")}</button></div></details>` : `<button class="text-button" data-action="login">${t("Sign in", "登录")}</button>`}${button(t("Submit a creation", "投稿作品"), "upload", "button-dark", "plus")}`;
   $("#hero").hidden = state.view !== "discover";
   const featured =
     state.works.find((work) => work.id === "saltline") ||
@@ -248,7 +254,7 @@ function render() {
   $("#closing-note").innerHTML =
     `<span class="little-star">✳</span><p>${t("The internet could use a little more play.", "互联网，还可以再有趣一点。")}</p><small>${t("Made something delightful? There’s a little place for it here.", "如果你也做了点有意思的东西，这里给它留了一个位置。")}</small>`;
   $("#footer").innerHTML =
-    `<a href="/" class="footer-brand">onehtml<span class="brand-dot">.</span></a><span class="footer-copy">${t("A small corner of the internet, made for discovery.", "互联网的一个小角落，留给发现与创造。")}</span><div class="footer-links"><button data-action="about">${t("About", "关于")}</button><button data-action="guidelines">${t("Submission guide", "投稿指南")}</button><button data-action="sponsor">${t("Sponsor a spot", "赞助展示")}</button></div>`;
+    `<a href="/" class="footer-brand">onehtml<span class="brand-dot">.</span></a><span class="footer-copy">${t("A small corner of the internet, made for discovery.", "互联网的一个小角落，留给发现与创造。")}</span><div class="footer-links"><button data-action="about">${t("About", "关于")}</button><button data-action="guidelines">${t("Submission guide", "投稿指南")}</button><button data-action="sponsor">${t("Sponsor a spot", "赞助展示")}</button><button data-action="contact">${t("Contact Us", "联系我们")}</button></div>`;
   renderWorks();
 }
 function filteredWorks() {
@@ -507,6 +513,17 @@ async function interact(workId, operation) {
         : t("Removed from your collection.", "已取消收藏。"),
     );
 }
+
+function openContact() {
+  modalForm(
+    t("Get in touch.", "联系我们。"),
+    t("Have an idea, partnership inquiry, or need help? We’d love to hear from you.", "有想法、商务合作或需要帮助？欢迎随时联系我们。"),
+    `<div class="modal-copy"><p>${t("You can reach us directly via email. Click the button below to send us a message, or copy our address:", "你可以直接通过电子邮件与我们取得联系。点击下方按钮即可直接发送邮件，或复制联系地址：")}</p><div class="notice" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-block:16px;"><code>www.lukasfemale@gmail.com</code><a class="button button-primary" href="mailto:www.lukasfemale@gmail.com?subject=OneHTML%20Inquiry" target="_blank" rel="noopener noreferrer" style="min-height:36px;padding:8px 14px;font-size:12px;">${icon("mail")}${t("Send Email", "发送邮件")}</a></div><p>${t("We typically respond within 24 to 48 hours.", "我们通常在 24–48 小时内回复。")}</p></div>`,
+    "",
+    "contact",
+  );
+}
+
 function openInfo(guidelines = false) {
   modalForm(
     guidelines
@@ -829,6 +846,9 @@ document.addEventListener("click", async (event) => {
         break;
       case "guidelines":
         openInfo(true);
+        break;
+      case "contact":
+        openContact();
         break;
       case "explore":
         $("#collection").scrollIntoView({ behavior: "smooth" });

@@ -116,6 +116,36 @@ async function published(env, workId) {
   if (!work) fail(404, "This work is not available.");
   return work;
 }
+
+async function recordAndGetVisits(request, env) {
+  const now = Date.now();
+  const bucket = Math.floor(now / 3600000); // 1-hour resolution
+  const isRead = request.method === "GET";
+  try {
+    if (isRead) {
+      await env.DB.batch([
+        env.DB.prepare(
+          "INSERT INTO visit_counts (id,count,updated_at) VALUES ('total',20001,?) ON CONFLICT(id) DO UPDATE SET count=count+1,updated_at=?",
+        ).bind(now, now),
+        env.DB.prepare(
+          "INSERT INTO daily_visits (bucket,count,expires_at) VALUES (?,1,?) ON CONFLICT(bucket) DO UPDATE SET count=count+1",
+        ).bind(String(bucket), now + 25 * 3600000),
+        env.DB.prepare("DELETE FROM daily_visits WHERE expires_at<?").bind(now),
+      ]);
+    }
+    const [totalRow, dailyRows] = await Promise.all([
+      env.DB.prepare("SELECT count FROM visit_counts WHERE id='total'").first(),
+      env.DB.prepare("SELECT SUM(count) as last_24h FROM daily_visits WHERE expires_at>?").bind(now).first(),
+    ]);
+    const total = Math.max(20000, Number(totalRow?.count) || 20000);
+    const last24h = Math.max(1, Number(dailyRows?.last_24h) || 1);
+    return { total, last_24h: last24h };
+  } catch (err) {
+    console.error("[recordAndGetVisits error]:", err.message || err);
+    return { total: 20000, last_24h: 1 };
+  }
+}
+
 function publicWork(work) {
   const { object_key, builtin_path, review_note, ...safe } = work;
   return {
@@ -444,10 +474,12 @@ async function api(request, env, url) {
     )
       .bind(user?.id || "", user?.id || "")
       .all();
+    const visits = await recordAndGetVisits(request, env);
     return json({
       works: rows.results.map((work) => publicWork(work)),
       sandbox_ready: Boolean(env.SANDBOX_ORIGIN),
       sandbox_origin: env.SANDBOX_ORIGIN || null,
+      visits,
     });
   }
   if (path === "/api/submissions" && request.method === "GET") {
