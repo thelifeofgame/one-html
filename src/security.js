@@ -12,7 +12,7 @@ export function demoResponse(html, siteOrigin) {
       "X-Content-Type-Options": "nosniff",
       "Referrer-Policy": "no-referrer",
       "Cache-Control": "no-store",
-      "X-Robots-Tag": "noindex, nofollow, noarchive",
+      "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet",
       "Permissions-Policy":
         "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
     },

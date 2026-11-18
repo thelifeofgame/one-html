@@ -821,6 +821,24 @@ function htmlEscape(str) {
   })[char]);
 }
 
+function resolveCoverUrl(work, siteOrigin) {
+  if (!work.cover || work.cover === "custom") {
+    return `${siteOrigin}/favicon.svg`;
+  }
+  let cover = String(work.cover).trim();
+  if (cover.startsWith("http://") || cover.startsWith("https://")) {
+    return cover;
+  }
+  cover = cover.replace(/^\/+/, "");
+  if (cover.startsWith("covers/")) {
+    cover = cover.slice("covers/".length);
+  }
+  if (!/\.[a-zA-Z0-9]+$/.test(cover)) {
+    cover = `${cover}.png`;
+  }
+  return `${siteOrigin}/covers/${cover}`;
+}
+
 async function renderWorkDetail(work, env, siteOrigin) {
   const baseAsset = await env.ASSETS.fetch(new Request(`${siteOrigin}/index.html`));
   const baseHtml = await baseAsset.text();
@@ -828,9 +846,7 @@ async function renderWorkDetail(work, env, siteOrigin) {
   const titleText = `${work.title} — OneHTML`;
   const descText = work.description || "Discover little games, playful experiments, and useful tools on OneHTML.";
   const workUrl = `${siteOrigin}/work/${work.id}`;
-  const coverUrl = work.cover && work.cover !== "custom"
-    ? `${siteOrigin}/covers/${work.cover}.png`
-    : `${siteOrigin}/favicon.svg`;
+  const coverUrl = resolveCoverUrl(work, siteOrigin);
 
   const schema = {
     "@context": "https://schema.org",
@@ -838,6 +854,7 @@ async function renderWorkDetail(work, env, siteOrigin) {
     "name": work.title,
     "description": descText,
     "url": workUrl,
+    "image": coverUrl,
     "applicationCategory": work.category === "game" ? "GameApplication" : "BrowserApplication",
     "operatingSystem": "Any",
     "offers": {
@@ -872,6 +889,97 @@ async function renderWorkDetail(work, env, siteOrigin) {
 
   modified = modified.replace("<head>", `<head>\n    ${seoTags}`);
 
+  const semanticPrerender = `
+    <noscript>
+      <article class="work-prerender">
+        <h1>${htmlEscape(work.title)}</h1>
+        <p>${htmlEscape(descText)}</p>
+        <p>Category: ${htmlEscape(work.category || "game")} · Created by: ${htmlEscape(work.credit || "OneHTML Creator")}</p>
+        <p><a href="${htmlEscape(workUrl)}">Play ${htmlEscape(work.title)} on OneHTML</a></p>
+      </article>
+    </noscript>`;
+  modified = modified.replace('<main id="main-content">', `<main id="main-content">\n    ${semanticPrerender}`);
+
+  const headers = new Headers(baseAsset.headers);
+  headers.set("Content-Type", "text/html; charset=utf-8");
+  headers.set(
+    "Content-Security-Policy",
+    mainCsp +
+      (env.SANDBOX_ORIGIN
+        ? `; frame-src 'self' ${env.SANDBOX_ORIGIN}`
+        : "; frame-src 'self'"),
+  );
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  headers.set("Cache-Control", "public, max-age=3600, s-maxage=86400");
+
+  return new Response(modified, { status: 200, headers });
+}
+
+
+async function renderHome(env, siteOrigin) {
+  const baseAsset = await env.ASSETS.fetch(new Request(`${siteOrigin}/index.html`));
+  const baseHtml = await baseAsset.text();
+
+  const works = (
+    await env.DB.prepare(
+      "SELECT id, title, description, category, credit FROM works WHERE status='published' ORDER BY created_at DESC",
+    ).all()
+  ).results || [];
+
+  const titleText = "OneHTML — Small files. Big possibilities.";
+  const descText = "Discover little games, playful experiments, and useful tools. A world of possibilities, one HTML at a time.";
+  const homeUrl = `${siteOrigin}/`;
+  const defaultOgImage = `${siteOrigin}/covers/q1k3.png`;
+
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "OneHTML",
+    "url": homeUrl,
+    "description": descText,
+    "hasPart": works.map((w) => ({
+      "@type": w.category === "game" ? "VideoGame" : "WebApplication",
+      "name": w.title,
+      "url": `${siteOrigin}/work/${w.id}`,
+    })),
+  };
+
+  const seoTags = [
+    `<link rel="canonical" href="${htmlEscape(homeUrl)}" />`,
+    `<meta property="og:type" content="website" />`,
+    `<meta property="og:title" content="${htmlEscape(titleText)}" />`,
+    `<meta property="og:description" content="${htmlEscape(descText)}" />`,
+    `<meta property="og:url" content="${htmlEscape(homeUrl)}" />`,
+    `<meta property="og:image" content="${htmlEscape(defaultOgImage)}" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:title" content="${htmlEscape(titleText)}" />`,
+    `<meta name="twitter:description" content="${htmlEscape(descText)}" />`,
+    `<meta name="twitter:image" content="${htmlEscape(defaultOgImage)}" />`,
+    `<script type="application/ld+json">${JSON.stringify(schema)}<\/script>`,
+  ].join("\n    ");
+
+  let modified = baseHtml.replace("<head>", `<head>\n    ${seoTags}`);
+
+  const prerenderLinks = works
+    .map(
+      (w) =>
+        `<li><a href="${siteOrigin}/work/${w.id}"><strong>${htmlEscape(w.title)}</strong></a> (${htmlEscape(w.category || "app")}) - ${htmlEscape(w.description || "")}</li>`,
+    )
+    .join("\n        ");
+
+  const semanticPrerender = `
+    <noscript>
+      <section class="collection-prerender">
+        <h2>Curated HTML Creations</h2>
+        <ul>
+        ${prerenderLinks}
+        </ul>
+      </section>
+    </noscript>`;
+
+  modified = modified.replace('<main id="main-content">', `<main id="main-content">\n    ${semanticPrerender}`);
+
   const headers = new Headers(baseAsset.headers);
   headers.set("Content-Type", "text/html; charset=utf-8");
   headers.set(
@@ -898,7 +1006,12 @@ async function renderSitemap(env, siteOrigin) {
   const urls = [
     `  <url>\n    <loc>${xmlEscape(siteOrigin)}/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>`,
     ...works.map((w) => {
-      const date = new Date(w.created_at).toISOString().split("T")[0];
+      let date;
+      try {
+        date = new Date(w.created_at || Date.now()).toISOString().split("T")[0];
+      } catch {
+        date = new Date().toISOString().split("T")[0];
+      }
       return `  <url>\n    <loc>${xmlEscape(siteOrigin)}/work/${xmlEscape(w.id)}</loc>\n    <lastmod>${date}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`;
     }),
   ];
@@ -922,9 +1035,24 @@ export default {
       const siteOrigin = env.SITE_ORIGIN || url.origin;
 
       if (env.DEMO_ONLY === "true") {
+        if (url.pathname === "/robots.txt" && ["GET", "HEAD"].includes(request.method)) {
+          return new Response("User-agent: *\nDisallow: /\n", {
+            status: 200,
+            headers: {
+              "Content-Type": "text/plain; charset=utf-8",
+              "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet",
+              "Cache-Control": "public, max-age=86400",
+            },
+          });
+        }
         const match = url.pathname.match(/^\/play\/([A-Za-z0-9_.-]+)$/);
         if (!match || request.method !== "GET")
-          return new Response("Not found", { status: 404 });
+          return new Response("Not found", {
+            status: 404,
+            headers: {
+              "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet",
+            },
+          });
         if (url.search) fail(403, "Play links do not accept query parameters.");
         await throttle(request, env, "play-fetch", 120, 60000);
         const payload = await readPlayTicket(env.PLAY_TOKEN_SECRET, match[1]);
@@ -957,10 +1085,37 @@ export default {
       if (url.pathname.startsWith("/play/"))
         return new Response("Open this work from its isolated player.", {
           status: 403,
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet",
+          },
         });
 
-      if (url.pathname === "/sitemap.xml" && request.method === "GET") {
+      if (url.pathname === "/robots.txt" && ["GET", "HEAD"].includes(request.method)) {
+        const robots = [
+          "User-agent: *",
+          "Allow: /",
+          "Disallow: /api/",
+          "Disallow: /play/",
+          "",
+          `Sitemap: ${siteOrigin}/sitemap.xml`,
+        ].join("\n");
+        return new Response(robots + "\n", {
+          status: 200,
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            "Cache-Control": "public, max-age=86400",
+            "X-Content-Type-Options": "nosniff",
+          },
+        });
+      }
+
+      if (url.pathname === "/sitemap.xml" && ["GET", "HEAD"].includes(request.method)) {
         return await renderSitemap(env, siteOrigin);
+      }
+
+      if ((url.pathname === "/" || url.pathname === "/index.html") && request.method === "GET") {
+        return await renderHome(env, siteOrigin);
       }
 
       const workMatch = url.pathname.match(/^\/work\/([a-z0-9-]+)$/);
@@ -989,6 +1144,9 @@ export default {
       return new Response(response.body, { status: response.status, headers });
     } catch (error) {
       if (!error.status) console.error("Request failed:", error.message);
+      const extraHeaders = env.DEMO_ONLY === "true"
+        ? { "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet" }
+        : {};
       return json(
         {
           error: error.status
@@ -996,6 +1154,7 @@ export default {
             : "Something went wrong. Please try again.",
         },
         error.status || 500,
+        extraHeaders,
       );
     }
   },
