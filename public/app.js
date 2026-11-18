@@ -30,6 +30,7 @@ const icons = {
   fullscreen: '<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/>',
   share: '<path d="M12 16V3m-5 5 5-5 5 5M5 13v7h14v-7"/>',
   leaf: '<path d="M19 3C8 1 0 11 7 17s15-3 12-14ZM5 21l10-11"/>',
+  copy: '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
   mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
 };
 const icon = (name) =>
@@ -517,11 +518,40 @@ async function interact(workId, operation) {
 function openContact() {
   modalForm(
     t("Get in touch.", "联系我们。"),
-    t("Have an idea, partnership inquiry, or need help? We’d love to hear from you.", "有想法、商务合作或需要帮助？欢迎随时联系我们。"),
-    `<div class="modal-copy"><p>${t("You can reach us directly via email. Click the button below to send us a message, or copy our address:", "你可以直接通过电子邮件与我们取得联系。点击下方按钮即可直接发送邮件，或复制联系地址：")}</p><div class="notice" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-block:16px;"><code>www.lukasfemale@gmail.com</code><a class="button button-primary" href="mailto:www.lukasfemale@gmail.com?subject=OneHTML%20Inquiry" target="_blank" rel="noopener noreferrer" style="min-height:36px;padding:8px 14px;font-size:12px;">${icon("mail")}${t("Send Email", "发送邮件")}</a></div><p>${t("We typically respond within 24 to 48 hours.", "我们通常在 24–48 小时内回复。")}</p></div>`,
+    t(
+      "Have an idea, partnership inquiry, or need help? We’d love to hear from you.",
+      "有想法、商务合作或需要帮助？欢迎随时联系我们。",
+    ),
+    `<div class="modal-copy"><p>${t(
+      "You can reach our team directly via email. Whether it's a product suggestion, creator feature, or business collaboration, we’re happy to connect.",
+      "你可以直接通过电子邮件与我们取得联系。无论是功能建议、创作者入驻还是商业合作，我们都乐意沟通。",
+    )}</p><div class="contact-card"><div class="contact-card-label">${t(
+      "Official Contact Email",
+      "官方联络邮箱",
+    )}</div><div class="contact-email-row"><code class="contact-email-text" id="contact-email-value">www.lukasfemale@gmail.com</code><button type="button" class="contact-copy-btn" id="contact-copy-btn" aria-label="${t(
+      "Copy email address",
+      "复制邮箱地址",
+    )}">${icon("copy")}<span>${t("Copy", "复制")}</span></button></div><a class="button button-primary form-full contact-action" href="mailto:www.lukasfemale@gmail.com?subject=OneHTML%20Inquiry" target="_blank" rel="noopener noreferrer">${icon(
+      "mail",
+    )}<span>${t("Open Email Client", "打开邮件客户端发送")}</span>${icon("arrow")}</a></div><div class="notice" style="margin-top:14px;margin-bottom:0;">${t(
+      "We typically respond within 24 to 48 hours on business days.",
+      "我们通常在 24–48 小时内回复邮件。",
+    )}</div></div>`,
     "",
     "contact",
   );
+  const copyBtn = $("#contact-copy-btn");
+  if (copyBtn) {
+    copyBtn.addEventListener("click", async () => {
+      const email = "www.lukasfemale@gmail.com";
+      try {
+        await navigator.clipboard.writeText(email);
+        toast(t("Email address copied to clipboard.", "邮箱地址已复制到剪贴板。"));
+      } catch {
+        toast(email);
+      }
+    });
+  }
 }
 
 function openInfo(guidelines = false) {

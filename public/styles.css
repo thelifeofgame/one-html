@@ -930,3 +930,67 @@ h2 {
   opacity: 1;
   transform: translate(-50%, 0);
 }
+
+.contact-card {
+  margin: 18px 0 16px;
+  background: #fbf9f4;
+  border: 1px solid #ebe6dc;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.contact-card-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+.contact-email-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.contact-email-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--ink);
+  user-select: all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.contact-copy-btn {
+  background: #f5f4ee;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 11px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.contact-copy-btn:hover {
+  background: #ece8de;
+  border-color: #cfcbbe;
+}
+.contact-copy-btn svg {
+  width: 13px;
+  height: 13px;
+}
+.contact-action {
+  box-sizing: border-box;
+}
