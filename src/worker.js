@@ -476,7 +476,7 @@ async function api(request, env, url) {
       EXISTS(SELECT 1 FROM votes v WHERE v.work_id=w.id AND v.user_id=?) AS liked,
       EXISTS(SELECT 1 FROM favorites f WHERE f.work_id=w.id AND f.user_id=?) AS saved,
       COALESCE((SELECT MAX(s.amount_cents) FROM sponsor_requests s WHERE s.work_id=w.id AND s.status='contacted'), 0) AS sponsor_amount_cents
-      FROM works w WHERE w.status='published' ORDER BY sponsor_amount_cents DESC, likes DESC, w.created_at DESC LIMIT 200`,
+      FROM works w WHERE w.status='published' ORDER BY sponsor_amount_cents DESC, likes DESC, w.created_at ASC LIMIT 200`,
     )
       .bind(user?.id || "", user?.id || "")
       .all();
@@ -1018,7 +1018,7 @@ async function renderHome(env, siteOrigin) {
       (SELECT COUNT(*) FROM votes v WHERE v.work_id=w.id) AS likes,
       COALESCE((SELECT MAX(s.amount_cents) FROM sponsor_requests s WHERE s.work_id=w.id AND s.status='contacted'), 0) AS sponsor_amount_cents
       FROM works w WHERE w.status='published'
-      ORDER BY sponsor_amount_cents DESC, likes DESC, w.created_at DESC`,
+      ORDER BY sponsor_amount_cents DESC, likes DESC, w.created_at ASC`,
     ).all()
   ).results || [];
 

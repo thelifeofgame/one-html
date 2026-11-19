@@ -292,7 +292,7 @@ function compareWorks(a, b) {
   if (sponsorDiff !== 0) return sponsorDiff;
   const likesDiff = (b.likes || 0) - (a.likes || 0);
   if (likesDiff !== 0) return likesDiff;
-  return (b.created_at || 0) - (a.created_at || 0);
+  return (a.created_at || 0) - (b.created_at || 0);
 }
 function compareLeaderboard(a, b) {
   const likesDiff = (b.likes || 0) - (a.likes || 0);

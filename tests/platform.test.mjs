@@ -965,7 +965,7 @@ test("isolated playground preview runner executes on sandbox origin with strict 
   );
 });
 
-test("works sort by approved sponsor amount desc, then likes desc, then created_at desc without user sort toggle", async (t) => {
+test("works sort by approved sponsor amount desc, then likes desc, then created_at asc without user sort toggle", async (t) => {
   const f = await fixture(t);
   const admin = await f.account("admin_sort");
   const user2 = await f.account("voter_two");
@@ -1026,10 +1026,15 @@ test("works sort by approved sponsor amount desc, then likes desc, then created_
   // 2. Remaining liked works ordered by likes DESC: tiny-sail (2) then bloom (1)
   assert.equal(ids[2], "tiny-sail");
   assert.equal(ids[3], "bloom");
-  // 3. Remaining unliked works ordered by created_at DESC: newestPlain then pendingS
-  assert.equal(ids[4], newestPlain.id);
-  assert.equal(ids[5], pendingS.id);
-  assert.equal(catalog.works[5].sponsored, false);
+  // 3. Remaining unliked works ordered by created_at ASC (oldest first, newest at the end)
+  assert.equal(ids[4], "focus-island");
+  assert.equal(ids[5], "little-piano");
+  assert.equal(ids[6], "orbital");
+  assert.equal(ids[7], "midnight-drive");
+  assert.equal(ids[8], pendingS.id);
+  assert.equal(ids[9], newestPlain.id);
+  assert.equal(catalog.works[8].sponsored, false);
+  assert.equal(catalog.works[9].sponsored, false);
 
   // Verify frontend app.js no longer renders user sort dropdown
   const appSource = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
