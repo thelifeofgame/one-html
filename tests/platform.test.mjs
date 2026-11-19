@@ -1041,3 +1041,58 @@ test("works sort by approved sponsor amount desc, then likes desc, then created_
   assert.doesNotMatch(appSource, /id="sort"/);
   assert.doesNotMatch(appSource, /sort-select/);
 });
+
+test("GET /api/submissions returns user's submissions and spotlight requests, and leaderboard shares homepage sort order", async (t) => {
+  const f = await fixture(t);
+  const creator = await f.account("creator_space");
+  const other = await f.account("other_space");
+  const admin = await f.account("admin_space");
+
+  const sub1 = await (await f.submit(creator, { title: "Space Game", html: validHtml + "<!--sp1-->" })).json();
+  const sub2 = await (await f.submit(other, { title: "Other Game", html: validHtml + "<!--sp2-->" })).json();
+  await approve(f, admin, sub1.id, sub1.version_id);
+  await approve(f, admin, sub2.id, sub2.version_id);
+
+  await f.request("/api/sponsors", {
+    method: "POST",
+    cookie: creator.cookie,
+    body: { work_id: sub1.id, email: "creator@example.test", amount_cents: 1500, note: "Spotlight note" },
+  });
+  await f.request("/api/sponsors", {
+    method: "POST",
+    cookie: other.cookie,
+    body: { work_id: sub2.id, email: "other@example.test", amount_cents: 2500 },
+  });
+
+  // Creator sees only their own work and sponsor request
+  let creatorSpace = await (await f.request("/api/submissions", { cookie: creator.cookie })).json();
+  assert.equal(creatorSpace.works.length, 1);
+  assert.equal(creatorSpace.works[0].id, sub1.id);
+  assert.equal(creatorSpace.works[0].status, "published");
+  assert.equal(creatorSpace.sponsors.length, 1);
+  assert.equal(creatorSpace.sponsors[0].work_id, sub1.id);
+  assert.equal(creatorSpace.sponsors[0].work_title, "Space Game");
+  assert.equal(creatorSpace.sponsors[0].amount_cents, 1500);
+  assert.equal(creatorSpace.sponsors[0].status, "pending");
+  assert.equal(creatorSpace.sponsors[0].note, "Spotlight note");
+
+  // Admin approves creator's sponsor request -> status updates to contacted
+  const queue = await (await f.request("/api/admin/queue", { cookie: admin.cookie })).json();
+  const req = queue.sponsors.find((item) => item.work_id === sub1.id);
+  await f.request(`/api/admin/sponsors/${req.id}`, {
+    method: "POST",
+    cookie: admin.cookie,
+    body: { status: "contacted" },
+  });
+
+  creatorSpace = await (await f.request("/api/submissions", { cookie: creator.cookie })).json();
+  assert.equal(creatorSpace.sponsors[0].status, "contacted");
+
+  // Verify frontend app.js uses compareWorks everywhere (including leaderboard) and has My space tabs
+  const appSource = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
+  assert.doesNotMatch(appSource, /compareLeaderboard/);
+  assert.match(appSource, /\.sort\(compareWorks\)/);
+  assert.match(appSource, /data-space-tab=/);
+  assert.match(appSource, /"submissions"/);
+  assert.match(appSource, /"sponsors"/);
+});

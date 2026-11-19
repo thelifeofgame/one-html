@@ -490,14 +490,19 @@ async function api(request, env, url) {
   }
   if (path === "/api/submissions" && request.method === "GET") {
     const user = await member(request, env);
-    const rows = await env.DB.prepare(
-      `SELECT id,title,status,review_note,created_at,
-        (SELECT COUNT(*) FROM work_versions v WHERE v.work_id=works.id AND v.status='pending') AS pending_versions
-        FROM works WHERE author_id=? ORDER BY created_at DESC LIMIT 100`,
-    )
-      .bind(user.id)
-      .all();
-    return json({ works: rows.results });
+    const results = await env.DB.batch([
+      env.DB.prepare(
+        `SELECT id,title,title_zh,description,description_zh,category,credit,cover,status,review_note,created_at,reviewed_at,
+          (SELECT COUNT(*) FROM work_versions v WHERE v.work_id=works.id AND v.status='pending') AS pending_versions
+          FROM works WHERE author_id=? ORDER BY created_at DESC LIMIT 100`,
+      ).bind(user.id),
+      env.DB.prepare(
+        `SELECT s.id,s.work_id,w.title AS work_title,w.title_zh AS work_title_zh,w.status AS work_status,s.email,s.amount_cents,s.note,s.status,s.created_at
+          FROM sponsor_requests s JOIN works w ON w.id=s.work_id
+          WHERE s.user_id=? ORDER BY s.created_at DESC LIMIT 100`,
+      ).bind(user.id),
+    ]);
+    return json({ works: results[0].results, sponsors: results[1].results });
   }
   if (path === "/api/submissions" && request.method === "POST") {
     const user = await member(request, env);

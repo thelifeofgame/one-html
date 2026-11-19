@@ -1531,3 +1531,118 @@ h2 {
   outline: 2px dashed var(--orange);
   outline-offset: -4px;
 }
+
+/* My Space & Leaderboard Sponsored Badge */
+.tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.07);
+  color: inherit;
+}
+.category-tab.active .tab-count {
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--white);
+}
+.space-list {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.space-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.space-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.space-card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.space-card-title,
+.space-card-heading {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--ink);
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+.space-card-title:hover {
+  color: var(--orange-dark);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.space-chip {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: #f0efe8;
+  color: var(--muted);
+}
+.space-card-date {
+  font-size: 11px;
+  color: var(--muted);
+}
+.space-card-desc {
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--muted);
+  margin: 0;
+}
+.space-feedback {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #6b6e64;
+  background: #f6f5ee;
+  border-radius: 8px;
+  padding: 9px 12px;
+}
+.space-footer-cta {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 6px;
+}
+.leader-row.is-sponsored {
+  border-color: #e4c9a8;
+  box-shadow: 0 6px 20px #c9814814;
+}
+.leader-title-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.leader-sponsored {
+  background: #fff4dfeb;
+  border: 1px solid #e7c99f;
+  color: #9b5a1f;
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-size: 9px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}

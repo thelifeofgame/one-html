@@ -50,6 +50,10 @@ const state = {
   category: "all",
   search: "",
   view: location.pathname === "/preview" || location.hash === "#preview" ? "preview" : "discover",
+  spaceTab: "favorites",
+  submissions: [],
+  sponsorRequests: [],
+  spaceLoadedUser: null,
   modal: null,
   work: null,
   adminTab: "works",
@@ -222,6 +226,18 @@ function requireUser() {
   openAuth();
   return false;
 }
+async function refreshSpaceData() {
+  if (!state.user) {
+    state.submissions = [];
+    state.sponsorRequests = [];
+    state.spaceLoadedUser = null;
+    return;
+  }
+  const sub = await api("/submissions");
+  state.submissions = sub.works || [];
+  state.sponsorRequests = sub.sponsors || [];
+  state.spaceLoadedUser = state.user.id;
+}
 async function load() {
   const [account, collection] = await Promise.all([api("/me"), api("/works")]);
   state.user = account.user;
@@ -229,6 +245,18 @@ async function load() {
   state.works = collection.works;
   state.sandboxOrigin = collection.sandbox_origin;
   if (collection.visits) state.visits = collection.visits;
+  if (state.user) {
+    try {
+      await refreshSpaceData();
+    } catch {
+      state.submissions = [];
+      state.sponsorRequests = [];
+    }
+  } else {
+    state.submissions = [];
+    state.sponsorRequests = [];
+    state.spaceLoadedUser = null;
+  }
   render();
 }
 function render() {
@@ -241,7 +269,7 @@ function render() {
     ["discover", t("Discover", "发现")],
     ["leaderboard", t("Leaderboard", "排行榜")],
     ["preview", t("HTML Preview", "HTML 预览")],
-    ["saved", t("My collection", "我的收藏")],
+    ["saved", t("My space", "我的空间")],
   ]
     .map(
       ([view, label]) =>
@@ -252,7 +280,7 @@ function render() {
   const v24h = Number(state.visits?.last_24h || 1).toLocaleString();
   const visitStatsHtml = `<div class="header-stats" title="${t("Visitors in last 24h / Total visitors", "过去 24 小时访问量 / 总访问量")}"><span class="stats-badge"><span class="stats-dot"></span><span class="stats-label">${t("24h", "24小时")}</span><strong>${v24h}</strong></span><span class="stats-divider">/</span><span class="stats-badge"><span class="stats-label">${t("Total", "总访问")}</span><strong>${vTotal}</strong></span></div>`;
   $("#header-actions").innerHTML =
-    `${visitStatsHtml}<button class="language-button" data-action="language" aria-label="${t("Switch to Chinese", "切换到英文")}">${icon("globe")}${t("中文", "EN")}</button>${state.user ? `<details class="profile"><summary><span class="avatar">${esc(state.user.display_name[0].toUpperCase())}</span>${esc(state.user.display_name)}</summary><div class="profile-menu"><button data-action="submissions">${t("My submissions", "我的投稿")}</button>${state.user.role === "admin" ? `<button data-action="admin">${t("Review desk", "审核后台")}</button>` : ""}<button data-action="logout">${t("Sign out", "退出登录")}</button></div></details>` : `<button class="text-button" data-action="login">${t("Sign in", "登录")}</button>`}${button(t("Submit a creation", "投稿作品"), "upload", "button-dark", "plus")}`;
+    `${visitStatsHtml}<button class="language-button" data-action="language" aria-label="${t("Switch to Chinese", "切换到英文")}">${icon("globe")}${t("中文", "EN")}</button>${state.user ? `<details class="profile"><summary><span class="avatar">${esc(state.user.display_name[0].toUpperCase())}</span>${esc(state.user.display_name)}</summary><div class="profile-menu"><button data-space-jump="favorites">${t("Saved works", "我的收藏")}</button><button data-space-jump="submissions">${t("My submissions", "我的投稿")}</button><button data-space-jump="sponsors">${t("Spotlight requests", "赞助申请")}</button>${state.user.role === "admin" ? `<button data-action="admin">${t("Review desk", "审核后台")}</button>` : ""}<button data-action="logout">${t("Sign out", "退出登录")}</button></div></details>` : `<button class="text-button" data-action="login">${t("Sign in", "登录")}</button>`}${button(t("Submit a creation", "投稿作品"), "upload", "button-dark", "plus")}`;
   const isPreview = state.view === "preview";
   if ($("#hero")) $("#hero").hidden = state.view !== "discover";
   if ($("#work-showcase")) $("#work-showcase").hidden = isPreview;
@@ -273,10 +301,24 @@ function render() {
     state.works[0];
   if ($("#hero")) $("#hero").innerHTML =
     `<div class="hero-copy"><span class="eyebrow"><span class="eyebrow-dot"></span>${t("A playground for curious minds", "为好奇心留一片游乐场")}</span><h1>${t("Small files.<br><em>Big possibilities.</em>", "一个 HTML，<br><em>一整个新世界。</em>")}</h1><p class="hero-description">${t("Little games, playful experiments, and surprisingly useful tools. Discover what a single HTML can do.", "小游戏、交互实验，还有意想不到的实用工具。<br>看看一个小小的 HTML，能装下多少奇思妙想。")}</p><div class="hero-cta">${button(t("Find your next favorite", "发现有趣的作品"), "explore", "button-primary", "arrow")}<button class="text-button" data-action="about">${t("What is OneHTML?", "认识 OneHTML")}${icon("arrow")}</button></div><div class="hero-small"><span>${t("No installs. Just play.", "无需安装，点开即玩")}</span><span>${t("Made to be shared.", "好作品，值得被看见")}</span></div></div><div class="hero-feature"><button class="featured" data-work="${esc(featured?.id || "tiny-sail")}"><div class="featured-art">${featured ? artwork(featured) : art.sail}</div><div class="featured-caption"><div><strong>${featured?.id === "saltline" ? t("A whole harbor. In 1.4 MB.", "1.4 MB，一个雨夜港口。") : featured ? esc(title(featured)) : t("A little escape, in your browser.", "给自己一场海上的小逃离。")}</strong><small>${featured ? esc(featured.credit) : "OneHTML Lab"}</small></div><span class="round-play">${icon("play")}</span></div><span class="featured-sticker">${icon("visual")}${t("PRESS", "点开")}<br>${t("PLAY", "看看")}</span></button></div>`;
+  const savedCount = state.works.filter((work) => work.saved).length;
+  const spaceCount = !state.user
+    ? 0
+    : state.spaceTab === "submissions"
+      ? state.submissions.length
+      : state.spaceTab === "sponsors"
+        ? state.sponsorRequests.length
+        : savedCount;
   $("#collection-heading").innerHTML =
-    `<div class="section-title"><h2 id="collection-title">${state.view === "saved" ? t("Your little collection", "你的灵感收藏夹") : state.view === "leaderboard" ? t("Community favorites", "大家都喜欢") : t("The good stuff", "有趣的，都在这里")}</h2><span class="count-badge">${state.view === "saved" ? state.works.filter((work) => work.saved).length : state.works.length}</span></div><span class="section-aside">${icon("leaf")}${t("Small creations. A little joy.", "小小作品，大大乐趣。")}</span>`;
-  $("#toolbar").innerHTML =
-    `<div class="category-tabs">${["all", "game", "visual", "tool"].map((category) => `<button class="category-tab ${state.category === category ? "active" : ""}" data-category="${category}">${icon(category === "all" ? "grid" : category)}${categoryName(category)}</button>`).join("")}</div><div class="search-sort"><label class="search-box">${icon("search")}<input id="search" type="search" placeholder="${t("Find something fun…", "搜点有趣的…")}" aria-label="${t("Search creations", "搜索作品")}" value="${esc(state.search)}"></label></div>`;
+    `<div class="section-title"><h2 id="collection-title">${state.view === "saved" ? t("My space", "我的空间") : state.view === "leaderboard" ? t("Community favorites", "大家都喜欢") : t("The good stuff", "有趣的，都在这里")}</h2><span class="count-badge">${state.view === "saved" ? spaceCount : state.works.length}</span></div><span class="section-aside">${icon("leaf")}${state.view === "saved" ? t("Saved works, submissions & spotlight progress.", "收藏作品、投稿审核与赞助进度，一站查看。") : t("Small creations. A little joy.", "小小作品，大大乐趣。")}</span>`;
+  const spaceTabs = [
+    ["favorites", "bookmark", t("Saved", "我收藏的"), savedCount],
+    ["submissions", "code", t("My submissions", "我的投稿"), state.submissions.length],
+    ["sponsors", "visual", t("Spotlights", "赞助申请"), state.sponsorRequests.length],
+  ];
+  $("#toolbar").innerHTML = state.view === "saved"
+    ? `<div class="category-tabs">${spaceTabs.map(([tab, glyph, label, count]) => `<button class="category-tab ${state.spaceTab === tab ? "active" : ""}" data-space-tab="${tab}">${icon(glyph)}${label}${state.user ? ` <span class="tab-count">${count}</span>` : ""}</button>`).join("")}</div><div class="search-sort"><label class="search-box">${icon("search")}<input id="search" type="search" placeholder="${t("Filter your space…", "筛选我的空间…")}" aria-label="${t("Filter my space", "筛选我的空间")}" value="${esc(state.search)}"></label></div>`
+    : `<div class="category-tabs">${["all", "game", "visual", "tool"].map((category) => `<button class="category-tab ${state.category === category ? "active" : ""}" data-category="${category}">${icon(category === "all" ? "grid" : category)}${categoryName(category)}</button>`).join("")}</div><div class="search-sort"><label class="search-box">${icon("search")}<input id="search" type="search" placeholder="${t("Find something fun…", "搜点有趣的…")}" aria-label="${t("Search creations", "搜索作品")}" value="${esc(state.search)}"></label></div>`;
   $("#sponsor-banner").innerHTML =
     `<aside class="sponsor-banner"><span class="sponsor-icon">✳</span><div><h3>${t("Made something worth a little spotlight?", "你的作品，值得更多人看见。")}</h3><p>${t("Apply for a 7-day sponsored spot, from $5. Reviewed by a human.", "申请 7 天赞助展示，5 美元起，人工审核。")}</p></div>${button(t("Get a little spotlight", "申请展示位置"), "sponsor", "button-outline", "arrow")}</aside>`;
   $("#closing-note").innerHTML =
@@ -294,17 +336,12 @@ function compareWorks(a, b) {
   if (likesDiff !== 0) return likesDiff;
   return (a.created_at || 0) - (b.created_at || 0);
 }
-function compareLeaderboard(a, b) {
-  const likesDiff = (b.likes || 0) - (a.likes || 0);
-  if (likesDiff !== 0) return likesDiff;
-  return (b.created_at || 0) - (a.created_at || 0);
-}
 function filteredWorks() {
   const query = state.search.trim().toLowerCase();
   return state.works
     .filter(
       (work) =>
-        (state.category === "all" || work.category === state.category) &&
+        (state.view === "saved" || state.category === "all" || work.category === state.category) &&
         (state.view !== "saved" || work.saved) &&
         (!query ||
           [
@@ -318,13 +355,68 @@ function filteredWorks() {
             .toLowerCase()
             .includes(query)),
     )
-    .sort(state.view === "leaderboard" ? compareLeaderboard : compareWorks);
+    .sort(compareWorks);
 }
+function renderSpaceTab(element) {
+  const query = state.search.trim().toLowerCase();
+  const locale = state.lang === "zh" ? "zh-CN" : "en-US";
+  if (state.spaceTab === "submissions") {
+    const items = state.submissions.filter((item) =>
+      !query ||
+      [item.title, item.title_zh, item.description, item.description_zh, item.credit, item.review_note]
+        .join(" ")
+        .toLowerCase()
+        .includes(query),
+    );
+    if (!items.length) {
+      element.innerHTML = `<div class="empty-state">${icon("code")}<h3>${query ? t("No matching submissions.", "没有找到匹配的投稿。") : t("No submissions yet.", "你还没有投稿过作品。")}</h3><p>${query ? t("Try another keyword, or clear the search box.", "换个关键词试试，或清空筛选条件。") : t("Upload a single HTML file to get reviewed and hosted on OneHTML.", "上传单个 HTML 文件即可提交审核，审核通过后将在社区展示。")}</p>${button(t("Submit a creation", "投稿作品"), "upload", "button-primary", "plus")}</div>`;
+      return;
+    }
+    element.innerHTML = `<div class="space-list">${items
+      .map((work) => {
+        const isPublished = work.status === "published" && state.works.some((w) => w.id === work.id);
+        return `<article class="space-card"><div class="space-card-head"><div class="space-card-title-group">${isPublished ? `<button class="space-card-title" data-work="${work.id}">${esc(title(work))}</button>` : `<h3 class="space-card-heading">${esc(title(work))}</h3>`}<span class="status-badge status-${work.status}">${statusName(work.status)}</span>${work.category ? `<span class="space-chip">${categoryName(work.category)}</span>` : ""}${work.pending_versions ? `<span class="status-badge status-pending">${t("Pending version", "待审新版本")} (${work.pending_versions})</span>` : ""}</div><span class="space-card-date">${t("Submitted", "提交于")} ${new Date(work.created_at).toLocaleDateString(locale)}</span></div>${description(work) ? `<p class="space-card-desc">${esc(description(work))}</p>` : ""}${work.review_note ? `<div class="space-feedback"><strong>${t("Review feedback:", "审核反馈：")}</strong>${esc(work.review_note)}</div>` : ""}<div class="review-buttons">${isPublished ? `<button class="button button-outline" data-work="${work.id}">${t("Open", "打开体验")}</button>` : ""}<button class="button button-outline" data-versions="${work.id}">${t("Version history", "版本历史")}</button><button class="button button-primary" data-version-upload="${work.id}">${t("Submit new version", "提交新版本")}</button></div></article>`;
+      })
+      .join("")}<div class="space-footer-cta">${button(t("Submit another creation", "投稿新作品"), "upload", "button-dark", "plus")}</div></div>`;
+    return;
+  }
+  if (state.spaceTab === "sponsors") {
+    const items = state.sponsorRequests.filter((req) =>
+      !query ||
+      [req.work_title, req.work_title_zh, req.email, req.note]
+        .join(" ")
+        .toLowerCase()
+        .includes(query),
+    );
+    if (!items.length) {
+      element.innerHTML = `<div class="empty-state">${icon("visual")}<h3>${query ? t("No matching spotlight requests.", "没有找到匹配的赞助申请。") : t("No spotlight requests yet.", "还没有赞助展示申请。")}</h3><p>${query ? t("Try another keyword, or clear the search box.", "换个关键词试试，或清空筛选条件。") : t("Apply for a 7-day featured spotlight for any of your published works.", "你可以为已发布的作品申请首页与排行榜 7 天置顶展示位置。")}</p>${button(t("Get a little spotlight", "申请展示位置"), "sponsor", "button-primary", "arrow")}</div>`;
+      return;
+    }
+    const hintText = (status) =>
+      status === "contacted"
+        ? t("Approved — currently featured at the top of Discover & Leaderboard.", "已通过审核，当前正在首页与排行榜置顶展示。")
+        : status === "declined"
+          ? t("Not approved. Feel free to reach out via Contact Us if you have questions.", "本次申请未通过，如有疑问可通过页面底部联系我们。")
+          : t("In human review. No payment has been collected yet.", "等待管理员人工审核，审核前不会扣款。");
+    element.innerHTML = `<div class="space-list">${items
+      .map((req) => {
+        const workTitle = state.lang === "zh" && req.work_title_zh ? req.work_title_zh : req.work_title;
+        const canOpen = req.work_status === "published" && state.works.some((w) => w.id === req.work_id);
+        return `<article class="space-card"><div class="space-card-head"><div class="space-card-title-group">${canOpen ? `<button class="space-card-title" data-work="${req.work_id}">${esc(workTitle)}</button>` : `<h3 class="space-card-heading">${esc(workTitle)}</h3>`}<span class="status-badge status-${req.status}">${statusName(req.status)}</span><span class="space-chip">${(req.amount_cents / 100).toFixed(2)} / 7 ${t("days", "天")}</span></div><span class="space-card-date">${t("Applied", "申请于")} ${new Date(req.created_at).toLocaleString(locale)}</span></div><p class="space-card-desc">${t("Contact email:", "联系邮箱：")}${esc(req.email)}${req.note ? ` · ${t("Note:", "说明：")}${esc(req.note)}` : ""}</p><div class="space-feedback">${hintText(req.status)}</div></article>`;
+      })
+      .join("")}<div class="space-footer-cta">${button(t("Apply for another spotlight", "发起新的展示位申请"), "sponsor", "button-outline", "arrow")}</div></div>`;
+    return;
+  }
+}
+
 function renderWorks() {
   const element = $("#works");
   if (state.view === "saved" && !state.user) {
-    element.innerHTML = `<div class="empty-state">${icon("bookmark")}<h3>${t("Keep the good ones close.", "把喜欢的，留在身边。")}</h3><p>${t("Sign in to save your favorite creations.", "登录后就能收藏喜欢的作品。")}</p>${button(t("Sign in", "登录"), "login")}</div>`;
+    element.innerHTML = `<div class="empty-state">${icon("bookmark")}<h3>${t("Your personal OneHTML space.", "你的个人作品与收藏空间。")}</h3><p>${t("Sign in to view your saved favorites, submission reviews, and spotlight requests.", "登录后可查看你的收藏作品、投稿审核进度以及赞助展示位申请。")}</p>${button(t("Sign in", "登录"), "login")}</div>`;
     return;
+  }
+  if (state.view === "saved" && state.spaceTab !== "favorites") {
+    return renderSpaceTab(element);
   }
   const works = filteredWorks();
   if (!works.length) {
@@ -332,7 +424,7 @@ function renderWorks() {
     return;
   }
   if (state.view === "leaderboard") {
-    element.innerHTML = `<div class="leader-list">${works.map((work, index) => `<article class="leader-row"><span class="rank">${String(index + 1).padStart(2, "0")}</span><button class="leader-cover" data-work="${work.id}" aria-label="${esc(title(work))}">${artwork(work)}</button><div class="leader-copy"><button class="card-title" data-work="${work.id}">${esc(title(work))}</button><p>${esc(description(work))}</p></div><button class="mini-button ${work.liked ? "active" : ""}" data-like="${work.id}" aria-label="${t("Like", "点赞")} ${esc(title(work))}" aria-pressed="${Boolean(work.liked)}">${icon("heart")}<span>${work.likes}</span></button></article>`).join("")}</div>`;
+    element.innerHTML = `<div class="leader-list">${works.map((work, index) => `<article class="leader-row${work.sponsored ? " is-sponsored" : ""}"><span class="rank">${String(index + 1).padStart(2, "0")}</span><button class="leader-cover" data-work="${work.id}" aria-label="${esc(title(work))}">${artwork(work)}</button><div class="leader-copy"><div class="leader-title-line"><button class="card-title" data-work="${work.id}">${esc(title(work))}</button>${work.sponsored ? `<span class="leader-sponsored">✳ ${t("Sponsored", "赞助推荐")}</span>` : ""}</div><p>${esc(description(work))}</p></div><button class="mini-button ${work.liked ? "active" : ""}" data-like="${work.id}" aria-label="${t("Like", "点赞")} ${esc(title(work))}" aria-pressed="${Boolean(work.liked)}">${icon("heart")}<span>${work.likes}</span></button></article>`).join("")}</div>`;
     return;
   }
   element.innerHTML = works
@@ -587,7 +679,7 @@ async function interact(workId, operation) {
   });
   work[property] = result.active;
   work.likes = result.likes;
-  renderWorks();
+  render();
   document
     .querySelectorAll(`[data-${operation}="${workId}"]`)
     .forEach((element) => {
@@ -683,15 +775,16 @@ function openSponsor() {
 }
 async function openSubmissions() {
   if (!requireUser()) return;
-  const { works } = await api("/submissions");
-  state.submissions = works;
+  await refreshSpaceData();
+  const works = state.submissions;
+  const sponsors = state.sponsorRequests;
   modalForm(
-    t("Your creations, in the making.", "你的作品，都在这里。"),
+    t("Your creations & spotlights.", "你的投稿与展示位申请。"),
     t(
-      "Review status and feedback for your submissions.",
-      "查看投稿审核状态和反馈。",
+      "Review status and feedback for your submissions and spotlight requests.",
+      "查看投稿审核状态、反馈与赞助展示申请进度。",
     ),
-    `${works.length ? works.map((work) => `<article class="submission-item"><h3>${esc(work.title)}</h3><span class="status-badge status-${work.status}">${statusName(work.status)}</span>${work.pending_versions ? `<p>${t("Versions awaiting review", "待审核版本")}：${work.pending_versions}</p>` : ""}${work.review_note ? `<p>${esc(work.review_note)}</p>` : ""}<p>${new Date(work.created_at).toLocaleDateString()}</p><div class="review-buttons"><button class="button button-outline" data-versions="${work.id}">${t("Version history", "版本历史")}</button><button class="button button-primary" data-version-upload="${work.id}">${t("Submit new version", "提交新版本")}</button></div></article>`).join("") : `<p class="modal-copy">${t("Your first little creation could go right here.", "你的第一个小作品，就从这里开始。")}</p>`}${button(t("Submit another creation", "投稿作品"), "upload", "button-primary", "plus")}`,
+    `${works.length ? works.map((work) => `<article class="submission-item"><h3>${esc(work.title)}</h3><span class="status-badge status-${work.status}">${statusName(work.status)}</span>${work.pending_versions ? `<p>${t("Versions awaiting review", "待审核版本")}：${work.pending_versions}</p>` : ""}${work.review_note ? `<p>${esc(work.review_note)}</p>` : ""}<p>${new Date(work.created_at).toLocaleDateString()}</p><div class="review-buttons"><button class="button button-outline" data-versions="${work.id}">${t("Version history", "版本历史")}</button><button class="button button-primary" data-version-upload="${work.id}">${t("Submit new version", "提交新版本")}</button></div></article>`).join("") : `<p class="modal-copy">${t("Your first little creation could go right here.", "你的第一个小作品，就从这里开始。")}</p>`}${sponsors.length ? `<h3 style="margin:20px 0 10px;font-size:15px;">${t("Spotlight requests", "赞助申请进度")}</h3>${sponsors.map((req) => `<article class="submission-item"><h3>${esc(req.work_title)}</h3><span class="status-badge status-${req.status}">${statusName(req.status)}</span><p>${(req.amount_cents / 100).toFixed(2)} / 7 ${t("days", "天")} · ${esc(req.email)}</p>${req.note ? `<p>${esc(req.note)}</p>` : ""}<p>${new Date(req.created_at).toLocaleString()}</p></article>`).join("")}` : ""}${button(t("Submit another creation", "投稿作品"), "upload", "button-primary", "plus")}`,
     "medium",
     "submissions",
   );
@@ -833,12 +926,32 @@ document.addEventListener("click", async (event) => {
       }
       return;
     }
+    if (element.dataset.spaceTab) {
+      state.spaceTab = element.dataset.spaceTab;
+      state.search = "";
+      render();
+      return;
+    }
+    if (element.dataset.spaceJump) {
+      element.closest("details")?.removeAttribute("open");
+      if (!requireUser()) return;
+      state.view = "saved";
+      state.spaceTab = element.dataset.spaceJump;
+      state.search = "";
+      await refreshSpaceData();
+      render();
+      $("#collection")?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
     if (element.dataset.category) {
       state.category = element.dataset.category;
       render();
       return;
     }
     if (element.dataset.view) {
+      if (element.dataset.view === "saved" && state.user) {
+        refreshSpaceData().then(() => render()).catch(() => {});
+      }
       state.view = element.dataset.view;
       state.category = "all";
       state.search = "";
@@ -1104,7 +1217,13 @@ document.addEventListener("submit", async (event) => {
           method: "POST",
           body: data,
         });
-        await openSubmissions();
+        closeModal();
+        await refreshSpaceData();
+        state.view = "saved";
+        state.spaceTab = "submissions";
+        state.search = "";
+        render();
+        $("#collection")?.scrollIntoView({ behavior: "smooth" });
         toast(
           t(
             "Submitted. A human will take a look.",
@@ -1117,7 +1236,13 @@ document.addEventListener("submit", async (event) => {
           method: "POST",
           body: data,
         });
-        await openSubmissions();
+        closeModal();
+        await refreshSpaceData();
+        state.view = "saved";
+        state.spaceTab = "submissions";
+        state.search = "";
+        render();
+        $("#collection")?.scrollIntoView({ behavior: "smooth" });
         toast(t("New version saved for review.", "新版本已存档，等待审核。"));
         break;
       case "comment-form":
@@ -1139,6 +1264,12 @@ document.addEventListener("submit", async (event) => {
           },
         });
         closeModal();
+        await refreshSpaceData();
+        state.view = "saved";
+        state.spaceTab = "sponsors";
+        state.search = "";
+        render();
+        $("#collection")?.scrollIntoView({ behavior: "smooth" });
         toast(
           t(
             "Application saved. No payment was collected.",
