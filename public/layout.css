@@ -825,11 +825,13 @@ dialog.medium {
     margin-bottom: 22px;
   }
   .search-box {
-    width: 59%;
+    width: 100%;
   }
-  .sort-select {
-    font-size: 10px;
-    max-width: 36%;
+  .cover-sponsored {
+    right: 8px;
+    top: 8px;
+    font-size: 7px;
+    padding: 4px 5px;
   }
   .works-grid {
     gap: 18px 12px;

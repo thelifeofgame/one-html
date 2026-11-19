@@ -150,8 +150,11 @@ async function recordAndGetVisits(request, env) {
 
 function publicWork(work) {
   const { object_key, builtin_path, review_note, ...safe } = work;
+  const sponsorAmount = Number(work.sponsor_amount_cents) || 0;
   return {
     ...safe,
+    sponsor_amount_cents: sponsorAmount,
+    sponsored: sponsorAmount > 0,
     original:
       Boolean(builtin_path) ||
       (!work.author_id && work.credit === "OneHTML Lab"),
@@ -471,8 +474,9 @@ async function api(request, env, url) {
       `SELECT w.*, (SELECT COUNT(*) FROM votes v WHERE v.work_id=w.id) AS likes,
       (SELECT COUNT(*) FROM comments c WHERE c.work_id=w.id AND c.status='visible') AS comment_count,
       EXISTS(SELECT 1 FROM votes v WHERE v.work_id=w.id AND v.user_id=?) AS liked,
-      EXISTS(SELECT 1 FROM favorites f WHERE f.work_id=w.id AND f.user_id=?) AS saved
-      FROM works w WHERE w.status='published' ORDER BY likes DESC,w.created_at DESC LIMIT 200`,
+      EXISTS(SELECT 1 FROM favorites f WHERE f.work_id=w.id AND f.user_id=?) AS saved,
+      COALESCE((SELECT MAX(s.amount_cents) FROM sponsor_requests s WHERE s.work_id=w.id AND s.status='contacted'), 0) AS sponsor_amount_cents
+      FROM works w WHERE w.status='published' ORDER BY sponsor_amount_cents DESC, likes DESC, w.created_at DESC LIMIT 200`,
     )
       .bind(user?.id || "", user?.id || "")
       .all();
@@ -1010,7 +1014,11 @@ async function renderHome(env, siteOrigin) {
 
   const works = (
     await env.DB.prepare(
-      "SELECT id, title, description, category, credit FROM works WHERE status='published' ORDER BY created_at DESC",
+      `SELECT w.id, w.title, w.description, w.category, w.credit,
+      (SELECT COUNT(*) FROM votes v WHERE v.work_id=w.id) AS likes,
+      COALESCE((SELECT MAX(s.amount_cents) FROM sponsor_requests s WHERE s.work_id=w.id AND s.status='contacted'), 0) AS sponsor_amount_cents
+      FROM works w WHERE w.status='published'
+      ORDER BY sponsor_amount_cents DESC, likes DESC, w.created_at DESC`,
     ).all()
   ).results || [];
 

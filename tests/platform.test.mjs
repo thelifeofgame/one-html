@@ -964,3 +964,75 @@ test("isolated playground preview runner executes on sandbox origin with strict 
     "noindex, nofollow, noarchive, nosnippet",
   );
 });
+
+test("works sort by approved sponsor amount desc, then likes desc, then created_at desc without user sort toggle", async (t) => {
+  const f = await fixture(t);
+  const admin = await f.account("admin_sort");
+  const user2 = await f.account("voter_two");
+  const s1 = await (await f.submit(admin, { title: "Sponsored Low", html: validHtml + "<!--s1-->" })).json();
+  const s2 = await (await f.submit(admin, { title: "Sponsored High", html: validHtml + "<!--s2-->" })).json();
+  const pendingS = await (await f.submit(admin, { title: "Pending Sponsor Only", html: validHtml + "<!--sp-->" })).json();
+  const newestPlain = await (await f.submit(admin, { title: "Newest Plain", html: validHtml + "<!--np-->" })).json();
+  for (const item of [s1, s2, pendingS, newestPlain]) {
+    await approve(f, admin, item.id, item.version_id);
+  }
+  await f.store.DB.prepare("UPDATE works SET created_at=? WHERE id=?").bind(Date.now() + 100000, newestPlain.id).run();
+  await f.store.DB.prepare("UPDATE works SET created_at=? WHERE id=?").bind(Date.now() + 1000, pendingS.id).run();
+
+  // Likes on tiny-sail (2 likes) and bloom (1 like)
+  await f.request("/api/works/tiny-sail/like", { method: "POST", cookie: admin.cookie, body: { active: true } });
+  await f.request("/api/works/tiny-sail/like", { method: "POST", cookie: user2.cookie, body: { active: true } });
+  await f.request("/api/works/bloom/like", { method: "POST", cookie: admin.cookie, body: { active: true } });
+
+  // Submit sponsor requests: s1 ($10), s2 ($50), pendingS ($100, remains pending)
+  await f.request("/api/sponsors", {
+    method: "POST",
+    cookie: admin.cookie,
+    body: { work_id: s1.id, email: "a@example.test", amount_cents: 1000 },
+  });
+  await f.request("/api/sponsors", {
+    method: "POST",
+    cookie: admin.cookie,
+    body: { work_id: s2.id, email: "b@example.test", amount_cents: 5000 },
+  });
+  await f.request("/api/sponsors", {
+    method: "POST",
+    cookie: admin.cookie,
+    body: { work_id: pendingS.id, email: "c@example.test", amount_cents: 10000 },
+  });
+
+  // Approve s1 and s2 sponsors (status -> contacted), keep pendingS pending
+  const queue = await (await f.request("/api/admin/queue", { cookie: admin.cookie })).json();
+  for (const workId of [s1.id, s2.id]) {
+    const req = queue.sponsors.find((item) => item.work_id === workId);
+    assert.ok(req);
+    const res = await f.request(`/api/admin/sponsors/${req.id}`, {
+      method: "POST",
+      cookie: admin.cookie,
+      body: { status: "contacted" },
+    });
+    assert.equal(res.status, 200);
+  }
+
+  const catalog = await (await f.request("/api/works")).json();
+  const ids = catalog.works.map((w) => w.id);
+  // 1. Sponsored works ordered by amount_cents DESC: s2 ($50) then s1 ($10)
+  assert.equal(ids[0], s2.id);
+  assert.equal(ids[1], s1.id);
+  assert.equal(catalog.works[0].sponsored, true);
+  assert.equal(catalog.works[0].sponsor_amount_cents, 5000);
+  assert.equal(catalog.works[1].sponsored, true);
+  assert.equal(catalog.works[1].sponsor_amount_cents, 1000);
+  // 2. Remaining liked works ordered by likes DESC: tiny-sail (2) then bloom (1)
+  assert.equal(ids[2], "tiny-sail");
+  assert.equal(ids[3], "bloom");
+  // 3. Remaining unliked works ordered by created_at DESC: newestPlain then pendingS
+  assert.equal(ids[4], newestPlain.id);
+  assert.equal(ids[5], pendingS.id);
+  assert.equal(catalog.works[5].sponsored, false);
+
+  // Verify frontend app.js no longer renders user sort dropdown
+  const appSource = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
+  assert.doesNotMatch(appSource, /id="sort"/);
+  assert.doesNotMatch(appSource, /sort-select/);
+});

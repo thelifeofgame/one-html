@@ -48,7 +48,6 @@ const state = {
   works: [],
   user: null,
   category: "all",
-  sort: "top",
   search: "",
   view: location.pathname === "/preview" || location.hash === "#preview" ? "preview" : "discover",
   modal: null,
@@ -149,8 +148,8 @@ const statusName = (value) =>
     published: t("Published", "已发布"),
     rejected: t("Not approved", "未通过"),
     archived: t("Archived", "已存档"),
-    contacted: t("Contacted", "已联系"),
-    declined: t("Declined", "未接受"),
+    contacted: t("Spotlight active", "展示中"),
+    declined: t("Declined", "未通过"),
   })[value] || value;
 const artwork = (work) =>
   `<div class="work-art">${/^\/covers\/[a-z0-9-]+\.(png|webp)$/.test(work.cover) ? `<img src="${esc(work.cover)}" alt="" loading="lazy" decoding="async">` : art[work.cover] || art.custom}</div>`;
@@ -277,7 +276,7 @@ function render() {
   $("#collection-heading").innerHTML =
     `<div class="section-title"><h2 id="collection-title">${state.view === "saved" ? t("Your little collection", "你的灵感收藏夹") : state.view === "leaderboard" ? t("Community favorites", "大家都喜欢") : t("The good stuff", "有趣的，都在这里")}</h2><span class="count-badge">${state.view === "saved" ? state.works.filter((work) => work.saved).length : state.works.length}</span></div><span class="section-aside">${icon("leaf")}${t("Small creations. A little joy.", "小小作品，大大乐趣。")}</span>`;
   $("#toolbar").innerHTML =
-    `<div class="category-tabs">${["all", "game", "visual", "tool"].map((category) => `<button class="category-tab ${state.category === category ? "active" : ""}" data-category="${category}">${icon(category === "all" ? "grid" : category)}${categoryName(category)}</button>`).join("")}</div><div class="search-sort"><label class="search-box">${icon("search")}<input id="search" type="search" placeholder="${t("Find something fun…", "搜点有趣的…")}" aria-label="${t("Search creations", "搜索作品")}" value="${esc(state.search)}"></label><select class="sort-select" id="sort" aria-label="${t("Sort creations", "作品排序")}"><option value="top" ${state.sort === "top" ? "selected" : ""}>${t("Most loved", "最多点赞")}</option><option value="new" ${state.sort === "new" ? "selected" : ""}>${t("Freshly made", "最新发布")}</option></select></div>`;
+    `<div class="category-tabs">${["all", "game", "visual", "tool"].map((category) => `<button class="category-tab ${state.category === category ? "active" : ""}" data-category="${category}">${icon(category === "all" ? "grid" : category)}${categoryName(category)}</button>`).join("")}</div><div class="search-sort"><label class="search-box">${icon("search")}<input id="search" type="search" placeholder="${t("Find something fun…", "搜点有趣的…")}" aria-label="${t("Search creations", "搜索作品")}" value="${esc(state.search)}"></label></div>`;
   $("#sponsor-banner").innerHTML =
     `<aside class="sponsor-banner"><span class="sponsor-icon">✳</span><div><h3>${t("Made something worth a little spotlight?", "你的作品，值得更多人看见。")}</h3><p>${t("Apply for a 7-day sponsored spot, from $5. Reviewed by a human.", "申请 7 天赞助展示，5 美元起，人工审核。")}</p></div>${button(t("Get a little spotlight", "申请展示位置"), "sponsor", "button-outline", "arrow")}</aside>`;
   $("#closing-note").innerHTML =
@@ -287,6 +286,18 @@ function render() {
   if (!isPreview) {
     renderWorks();
   }
+}
+function compareWorks(a, b) {
+  const sponsorDiff = (b.sponsor_amount_cents || 0) - (a.sponsor_amount_cents || 0);
+  if (sponsorDiff !== 0) return sponsorDiff;
+  const likesDiff = (b.likes || 0) - (a.likes || 0);
+  if (likesDiff !== 0) return likesDiff;
+  return (b.created_at || 0) - (a.created_at || 0);
+}
+function compareLeaderboard(a, b) {
+  const likesDiff = (b.likes || 0) - (a.likes || 0);
+  if (likesDiff !== 0) return likesDiff;
+  return (b.created_at || 0) - (a.created_at || 0);
 }
 function filteredWorks() {
   const query = state.search.trim().toLowerCase();
@@ -307,11 +318,7 @@ function filteredWorks() {
             .toLowerCase()
             .includes(query)),
     )
-    .sort((a, b) =>
-      state.sort === "new"
-        ? b.created_at - a.created_at
-        : b.likes - a.likes || b.created_at - a.created_at,
-    );
+    .sort(state.view === "leaderboard" ? compareLeaderboard : compareWorks);
 }
 function renderWorks() {
   const element = $("#works");
@@ -331,7 +338,7 @@ function renderWorks() {
   element.innerHTML = works
     .map(
       (work) =>
-        `<article class="work-card"><button class="cover-button" data-work="${work.id}" aria-label="${t("Open", "打开")} ${esc(title(work))}">${artwork(work)}<span class="cover-tag">${icon(work.category)}${categoryName(work.category)}</span><span class="cover-play"><span>${icon("play")}</span></span></button><div class="card-content"><div class="card-title-row"><button class="card-title" data-work="${work.id}">${esc(title(work))}</button><button class="bookmark ${work.saved ? "active" : ""}" data-save="${work.id}" aria-label="${work.saved ? t("Unsave", "取消收藏") : t("Save", "收藏")} ${esc(title(work))}" aria-pressed="${Boolean(work.saved)}">${icon("bookmark")}</button></div><p class="card-description">${esc(description(work))}</p><div class="card-footer"><div class="author"><span class="avatar">${work.original ? "✳" : esc(work.credit[0].toUpperCase())}</span><span>${esc(work.credit)}</span></div><div class="card-interactions"><button class="mini-button ${work.liked ? "active" : ""}" data-like="${work.id}" aria-label="${t("Like", "点赞")} ${esc(title(work))}" aria-pressed="${Boolean(work.liked)}">${icon("heart")}<span>${work.likes}</span></button><button class="mini-button" data-work="${work.id}" aria-label="${t("Comments", "评论")} ${esc(title(work))}">${icon("chat")}<span>${work.comment_count}</span></button></div></div></div></article>`,
+        `<article class="work-card${work.sponsored ? " is-sponsored" : ""}"><button class="cover-button" data-work="${work.id}" aria-label="${t("Open", "打开")} ${esc(title(work))}">${artwork(work)}<span class="cover-tag">${icon(work.category)}${categoryName(work.category)}</span>${work.sponsored ? `<span class="cover-sponsored">✳ ${t("Sponsored", "赞助推荐")}</span>` : ""}<span class="cover-play"><span>${icon("play")}</span></span></button><div class="card-content"><div class="card-title-row"><button class="card-title" data-work="${work.id}">${esc(title(work))}</button><button class="bookmark ${work.saved ? "active" : ""}" data-save="${work.id}" aria-label="${work.saved ? t("Unsave", "取消收藏") : t("Save", "收藏")} ${esc(title(work))}" aria-pressed="${Boolean(work.saved)}">${icon("bookmark")}</button></div><p class="card-description">${esc(description(work))}</p><div class="card-footer"><div class="author"><span class="avatar">${work.original ? "✳" : esc(work.credit[0].toUpperCase())}</span><span>${esc(work.credit)}</span></div><div class="card-interactions"><button class="mini-button ${work.liked ? "active" : ""}" data-like="${work.id}" aria-label="${t("Like", "点赞")} ${esc(title(work))}" aria-pressed="${Boolean(work.liked)}">${icon("heart")}<span>${work.likes}</span></button><button class="mini-button" data-work="${work.id}" aria-label="${t("Comments", "评论")} ${esc(title(work))}">${icon("chat")}<span>${work.comment_count}</span></button></div></div></div></article>`,
     )
     .join("");
 }
@@ -659,10 +666,17 @@ function openInfo(guidelines = false) {
 function openSponsor() {
   if (!requireUser()) return;
   const owned = state.works.filter((work) => work.author_id === state.user.id);
+  const eligible =
+    state.user.role === "admin"
+      ? [
+          ...owned,
+          ...state.works.filter((work) => work.author_id !== state.user.id),
+        ]
+      : owned;
   modalForm(
     t("Give your creation a little spotlight.", "让你的作品，站到聚光灯下。"),
     t("7-day sponsored placement · offers from $5", "7 天赞助展示 · 5 美元起"),
-    `<div class="notice">${t("Applications are open. Checkout and live auctions are not enabled. Submitting this form does not charge you or reserve a position. An administrator will review your request first.", "目前接受展示申请，尚未开通在线付款及实时竞拍。提交不会扣款，也不会预留位置；管理员会先审核申请。")}</div>${owned.length ? `<form id="sponsor-form">${field(t("Your published creation", "你的已发布作品"), `<select name="work_id">${owned.map((work) => `<option value="${work.id}">${esc(title(work))}</option>`).join("")}</select>`)}<div class="form-grid">${field(t("Contact email", "联系邮箱"), '<input type="email" name="email" maxlength="254" required>')}${field(t("Your offer (USD / 7 days)", "申请报价（美元 / 7 天）"), '<input type="number" name="amount" min="5" max="10000" step="0.01" value="5" required>')}</div>${field(t("Anything we should know?", "补充说明（可选）"), '<textarea name="note" maxlength="1000"></textarea>')}<button class="button button-primary form-full" type="submit">${t("Send application · no payment", "提交申请 · 暂不付款")}${icon("arrow")}</button><div class="form-error" role="alert"></div></form>` : `<p class="modal-copy">${t("You’ll need a published creation before applying for a sponsored spot. Submit your work first, and we’ll take a look.", "先发布一个属于你的作品，再申请展示位置。提交作品后，我们会尽快审核。")}</p>${button(t("Submit your creation", "投稿我的作品"), "upload", "button-primary", "plus")}`}<p class="form-note">${t("Sponsored placements will be labeled and kept separate from the organic likes ranking.", "赞助展示会明确标注，与自然点赞排名分开展示。")}</p>`,
+    `<div class="notice">${t("Applications are open. Checkout and live auctions are not enabled. Submitting this form does not charge you or reserve a position. An administrator will review your request first.", "目前接受展示申请，尚未开通在线付款及实时竞拍。提交不会扣款，也不会预留位置；管理员会先审核申请。")}</div>${eligible.length ? `<form id="sponsor-form">${field(t("Your published creation", "你的已发布作品"), `<select name="work_id">${eligible.map((work) => `<option value="${work.id}">${esc(title(work))}</option>`).join("")}</select>`)}<div class="form-grid">${field(t("Contact email", "联系邮箱"), '<input type="email" name="email" maxlength="254" required>')}${field(t("Your offer (USD / 7 days)", "申请报价（美元 / 7 天）"), '<input type="number" name="amount" min="5" max="10000" step="0.01" value="5" required>')}</div>${field(t("Anything we should know?", "补充说明（可选）"), '<textarea name="note" maxlength="1000"></textarea>')}<button class="button button-primary form-full" type="submit">${t("Send application · no payment", "提交申请 · 暂不付款")}${icon("arrow")}</button><div class="form-error" role="alert"></div></form>` : `<p class="modal-copy">${t("You’ll need a published creation before applying for a sponsored spot. Submit your work first, and we’ll take a look.", "先发布一个属于你的作品，再申请展示位置。提交作品后，我们会尽快审核。")}</p>${button(t("Submit your creation", "投稿我的作品"), "upload", "button-primary", "plus")}`}<p class="form-note">${t("Sponsored placements will be labeled and kept separate from the organic likes ranking.", "赞助展示会明确标注，与自然点赞排名分开展示。")}</p>`,
     "",
     "sponsor",
   );
@@ -769,7 +783,7 @@ async function openAdmin() {
     items = queue.sponsors
       .map(
         (request) =>
-          `<article class="review-item"><h3>${esc(request.title)} <span class="status-badge status-${request.status}">${statusName(request.status)}</span></h3><p>${esc(request.email)} · $${(request.amount_cents / 100).toFixed(2)} / 7 ${t("days", "天")}</p><p>${esc(request.note)}</p>${request.status === "pending" ? `<div class="review-buttons"><button class="button button-primary" data-sponsor-status="${request.id}" data-status="contacted">${t("Mark contacted", "标记已联系")}</button><button class="button button-outline" data-sponsor-status="${request.id}" data-status="declined">${t("Decline", "不接受")}</button></div>` : ""}</article>`,
+          `<article class="review-item"><h3>${esc(request.title)} <span class="status-badge status-${request.status}">${statusName(request.status)}</span></h3><p>${esc(request.email)} · ${(request.amount_cents / 100).toFixed(2)} / 7 ${t("days", "天")}</p><p>${esc(request.note)}</p>${request.status === "pending" ? `<div class="review-buttons"><button class="button button-primary" data-sponsor-status="${request.id}" data-status="contacted">${t("Approve spotlight", "通过并置顶展示")}</button><button class="button button-outline" data-sponsor-status="${request.id}" data-status="declined">${t("Decline", "不接受")}</button></div>` : request.status === "contacted" ? `<div class="review-buttons"><button class="button button-outline" data-sponsor-status="${request.id}" data-status="declined">${t("End spotlight", "结束展示")}</button></div>` : `<div class="review-buttons"><button class="button button-outline" data-sponsor-status="${request.id}" data-status="contacted">${t("Restore spotlight", "恢复展示")}</button></div>`}</article>`,
       )
       .join("");
   modalForm(
@@ -933,6 +947,7 @@ document.addEventListener("click", async (event) => {
         method: "POST",
         body: { status: element.dataset.status },
       });
+      await load();
       return await openAdmin();
     }
     switch (element.dataset.action) {
@@ -1064,10 +1079,6 @@ document.addEventListener("input", (event) => {
   }
 });
 document.addEventListener("change", (event) => {
-  if (event.target.id === "sort") {
-    state.sort = event.target.value;
-    renderWorks();
-  }
   if (event.target.id === "html-file")
     readUpload(event.target.files[0]).catch((error) => toast(error.message));
 });

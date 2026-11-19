@@ -511,7 +511,7 @@ h2 {
   border-radius: 8px;
   padding: 9px 11px;
   background: #fffefa;
-  width: 180px;
+  width: 240px;
 }
 .search-box svg {
   width: 14px;
@@ -527,13 +527,9 @@ h2 {
   font-size: 11px;
   color: var(--ink);
 }
-.sort-select {
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  font-size: 11px;
-  max-width: 140px;
-  padding: 8px 0;
+.work-card.is-sponsored {
+  border-color: #e4c9a8;
+  box-shadow: 0 6px 20px #c9814814;
 }
 .works-grid {
   display: grid;
@@ -601,6 +597,21 @@ h2 {
 .cover-tag svg {
   width: 10px;
   height: 10px;
+}
+.cover-sponsored {
+  position: absolute;
+  right: 13px;
+  top: 13px;
+  background: #fff4dfeb;
+  border: 1px solid #e7c99f;
+  color: #9b5a1f;
+  padding: 5px 8px;
+  border-radius: 5px;
+  font-size: 9px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
 }
 .cover-play {
   opacity: 0;
