@@ -1,3 +1,4 @@
+import { createPlaygroundUI } from "./playground.js";
 import { art } from "./art.js";
 import { createPlayer } from "./player.js";
 
@@ -32,6 +33,11 @@ const icons = {
   leaf: '<path d="M19 3C8 1 0 11 7 17s15-3 12-14ZM5 21l10-11"/>',
   copy: '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
   mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+  code: '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+  external: '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>',
+  monitor: '<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>',
+  mobile: '<rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>',
 };
 const icon = (name) =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.visual}</svg>`;
@@ -44,13 +50,21 @@ const state = {
   category: "all",
   sort: "top",
   search: "",
-  view: "discover",
+  view: location.pathname === "/preview" || location.hash === "#preview" ? "preview" : "discover",
   modal: null,
   work: null,
   adminTab: "works",
   sandboxOrigin: null,
   authProviders: { google: false },
   visits: { total: 20000, last_24h: 1 },
+  playground: {
+    code: "",
+    autoRun: true,
+    device: "desktop",
+    status: "ready",
+    statusText: "",
+    errorMsg: "",
+  },
 };
 let activePlayer = null,
   modalEpoch = 0;
@@ -226,6 +240,7 @@ function render() {
   );
   $("#main-nav").innerHTML = [
     ["discover", t("Discover", "发现")],
+    ["preview", t("HTML Preview", "HTML 预览")],
     ["leaderboard", t("Leaderboard", "排行榜")],
     ["saved", t("My collection", "我的收藏")],
   ]
@@ -239,12 +254,25 @@ function render() {
   const visitStatsHtml = `<div class="header-stats" title="${t("Visitors in last 24h / Total visitors", "过去 24 小时访问量 / 总访问量")}"><span class="stats-badge"><span class="stats-dot"></span><span class="stats-label">${t("24h", "24小时")}</span><strong>${v24h}</strong></span><span class="stats-divider">/</span><span class="stats-badge"><span class="stats-label">${t("Total", "总访问")}</span><strong>${vTotal}</strong></span></div>`;
   $("#header-actions").innerHTML =
     `${visitStatsHtml}<button class="language-button" data-action="language" aria-label="${t("Switch to Chinese", "切换到英文")}">${icon("globe")}${t("中文", "EN")}</button>${state.user ? `<details class="profile"><summary><span class="avatar">${esc(state.user.display_name[0].toUpperCase())}</span>${esc(state.user.display_name)}</summary><div class="profile-menu"><button data-action="submissions">${t("My submissions", "我的投稿")}</button>${state.user.role === "admin" ? `<button data-action="admin">${t("Review desk", "审核后台")}</button>` : ""}<button data-action="logout">${t("Sign out", "退出登录")}</button></div></details>` : `<button class="text-button" data-action="login">${t("Sign in", "登录")}</button>`}${button(t("Submit a creation", "投稿作品"), "upload", "button-dark", "plus")}`;
-  $("#hero").hidden = state.view !== "discover";
+  const isPreview = state.view === "preview";
+  if ($("#hero")) $("#hero").hidden = state.view !== "discover";
+  if ($("#work-showcase")) $("#work-showcase").hidden = isPreview;
+  if ($("#collection")) $("#collection").hidden = isPreview;
+  if ($("#closing-note")) $("#closing-note").hidden = isPreview;
+  const pgSection = $("#preview-playground");
+  if (pgSection) {
+    pgSection.hidden = !isPreview;
+    if (isPreview && (!pgSection.dataset.ready || pgSection.dataset.lang !== state.lang)) {
+      createPlaygroundUI({ state, t, icon, toast, openUpload });
+      pgSection.dataset.ready = "1";
+      pgSection.dataset.lang = state.lang;
+    }
+  }
   const featured =
     state.works.find((work) => work.id === "saltline") ||
     state.works.find((work) => work.id === "tiny-sail") ||
     state.works[0];
-  $("#hero").innerHTML =
+  if ($("#hero")) $("#hero").innerHTML =
     `<div class="hero-copy"><span class="eyebrow"><span class="eyebrow-dot"></span>${t("A playground for curious minds", "为好奇心留一片游乐场")}</span><h1>${t("Small files.<br><em>Big possibilities.</em>", "一个 HTML，<br><em>一整个新世界。</em>")}</h1><p class="hero-description">${t("Little games, playful experiments, and surprisingly useful tools. Discover what a single HTML can do.", "小游戏、交互实验，还有意想不到的实用工具。<br>看看一个小小的 HTML，能装下多少奇思妙想。")}</p><div class="hero-cta">${button(t("Find your next favorite", "发现有趣的作品"), "explore", "button-primary", "arrow")}<button class="text-button" data-action="about">${t("What is OneHTML?", "认识 OneHTML")}${icon("arrow")}</button></div><div class="hero-small"><span>${t("No installs. Just play.", "无需安装，点开即玩")}</span><span>${t("Made to be shared.", "好作品，值得被看见")}</span></div></div><div class="hero-feature"><button class="featured" data-work="${esc(featured?.id || "tiny-sail")}"><div class="featured-art">${featured ? artwork(featured) : art.sail}</div><div class="featured-caption"><div><strong>${featured?.id === "saltline" ? t("A whole harbor. In 1.4 MB.", "1.4 MB，一个雨夜港口。") : featured ? esc(title(featured)) : t("A little escape, in your browser.", "给自己一场海上的小逃离。")}</strong><small>${featured ? esc(featured.credit) : "OneHTML Lab"}</small></div><span class="round-play">${icon("play")}</span></div><span class="featured-sticker">${icon("visual")}${t("PRESS", "点开")}<br>${t("PLAY", "看看")}</span></button></div>`;
   $("#collection-heading").innerHTML =
     `<div class="section-title"><h2 id="collection-title">${state.view === "saved" ? t("Your little collection", "你的灵感收藏夹") : state.view === "leaderboard" ? t("Community favorites", "大家都喜欢") : t("The good stuff", "有趣的，都在这里")}</h2><span class="count-badge">${state.view === "saved" ? state.works.filter((work) => work.saved).length : state.works.length}</span></div><span class="section-aside">${icon("leaf")}${t("Small creations. A little joy.", "小小作品，大大乐趣。")}</span>`;
@@ -256,7 +284,9 @@ function render() {
     `<span class="little-star">✳</span><p>${t("The internet could use a little more play.", "互联网，还可以再有趣一点。")}</p><small>${t("Made something delightful? There’s a little place for it here.", "如果你也做了点有意思的东西，这里给它留了一个位置。")}</small>`;
   $("#footer").innerHTML =
     `<a href="/" class="footer-brand">onehtml<span class="brand-dot">.</span></a><span class="footer-copy">${t("A small corner of the internet, made for discovery.", "互联网的一个小角落，留给发现与创造。")}</span><div class="footer-links"><button data-action="about">${t("About", "关于")}</button><button data-action="guidelines">${t("Submission guide", "投稿指南")}</button><button data-action="sponsor">${t("Sponsor a spot", "赞助展示")}</button><button data-action="contact">${t("Contact Us", "联系我们")}</button></div>`;
-  renderWorks();
+  if (!isPreview) {
+    renderWorks();
+  }
 }
 function filteredWorks() {
   const query = state.search.trim().toLowerCase();
@@ -369,7 +399,7 @@ function htmlFields() {
 function sourceFields(work = {}) {
   return `<details class="source-fields"><summary>${t("Source and version · optional", "来源与版本 · 均为可选")}</summary><div class="form-grid">${field(t("Source URL", "来源链接"), `<input name="source_url" type="url" value="${esc(work.source_url || "")}" placeholder="https://" maxlength="500">`)}${field(t("Source version / commit", "来源版本 / 提交号"), '<input name="source_revision" maxlength="120">')}${field(t("License · optional", "许可 · 可留空"), `<input name="license" value="${esc(work.license || "")}" maxlength="120">`)}${field(t("Version type", "版本类型"), `<select name="variant"><option value="original">${t("Original", "原版")}</option><option value="adapted">${t("Adapted", "适配版")}</option></select>`)}</div>${field(t("Source notes", "来源备注"), '<textarea name="source_note" maxlength="600"></textarea>')}${field(t("Adaptation notes · if modified", "适配说明 · 修改过时填写"), '<textarea name="adaptation_note" maxlength="600"></textarea>')}</details>`;
 }
-function openUpload(work = null) {
+function openUpload(work = null, initialCode = "") {
   if (!requireUser()) return;
   modalForm(
     work
@@ -388,6 +418,10 @@ function openUpload(work = null) {
     "medium",
     "upload",
   );
+  if (initialCode) {
+    const codeEl = $("#html-code");
+    if (codeEl) codeEl.value = initialCode;
+  }
   const zone = $(".upload-zone");
   zone.addEventListener("dragover", (event) => event.preventDefault());
   zone.addEventListener("drop", (event) => {
@@ -751,6 +785,15 @@ async function openAdmin() {
 }
 
 document.addEventListener("click", async (event) => {
+  if (event.target.closest(".brand")) {
+    if (state.view === "preview") {
+      state.view = "discover";
+      if (location.pathname === "/preview") {
+        try { history.pushState(null, "", "/"); } catch(_) {}
+      }
+      render();
+    }
+  }
   const element = event.target.closest("button,[data-view]");
   if (!element) return;
   try {
@@ -786,7 +829,17 @@ document.addEventListener("click", async (event) => {
       state.category = "all";
       state.search = "";
       render();
-      $("#collection").scrollIntoView({ behavior: "smooth" });
+      if (state.view === "preview") {
+        if (location.pathname !== "/preview") {
+          try { history.pushState(null, "", "/preview"); } catch(_) {}
+        }
+        $("#preview-playground")?.scrollIntoView({ behavior: "smooth" });
+      } else {
+        if (location.pathname === "/preview") {
+          try { history.pushState(null, "", "/"); } catch(_) {}
+        }
+        $("#collection")?.scrollIntoView({ behavior: "smooth" });
+      }
       return;
     }
     if (element.dataset.deleteComment) {
@@ -1111,6 +1164,13 @@ document.addEventListener("visibilitychange", () => {
   )
     activePlayer.stop();
 });
+window.addEventListener("popstate", () => {
+  const nextView = location.pathname === "/preview" || location.hash === "#preview" ? "preview" : "discover";
+  if (state.view !== nextView) {
+    state.view = nextView;
+    render();
+  }
+});
 window.addEventListener("hashchange", () => {
   const match = location.hash.match(/^#work\/([a-z0-9-]+)$/);
   if (match) openWork(match[1]).catch((error) => toast(error.message));
@@ -1149,6 +1209,10 @@ load()
           messages[error] || messages.invalid;
       } else if (state.user)
         toast(t("Signed in with Google.", "已使用 Google 登录。"));
+    }
+    if (location.pathname === "/preview" || location.hash === "#preview") {
+      state.view = "preview";
+      render();
     }
     const pathMatch = location.pathname.match(/^\/work\/([a-z0-9-]+)$/);
     const match = location.hash.match(/^#work\/([a-z0-9-]+)$/);

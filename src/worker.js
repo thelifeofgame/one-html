@@ -1,3 +1,4 @@
+import { previewRunnerHtml } from "./preview-runner.js";
 import { getWorkEnrichedDetails } from "./seo-meta.js";
 import {
   hash,
@@ -1126,6 +1127,19 @@ export default {
       const siteOrigin = env.SITE_ORIGIN || url.origin;
 
       if (env.DEMO_ONLY === "true") {
+        if (url.pathname === "/preview" && ["GET", "HEAD"].includes(request.method)) {
+          const allowedAncestors = [
+            env.SITE_ORIGIN,
+            "https://onehtmlapp.com",
+            "https://www.onehtmlapp.com",
+            "https://onehtml.onehtml.workers.dev",
+            "http://127.0.0.1:4391",
+            "http://localhost:4391",
+            "http://43.161.242.122:4391",
+          ].filter(Boolean);
+          const frameAncestorsOrigin = Array.from(new Set(allowedAncestors)).join(" ");
+          return demoResponse(previewRunnerHtml(env.SITE_ORIGIN || siteOrigin), frameAncestorsOrigin);
+        }
         if (url.pathname === "/robots.txt" && ["GET", "HEAD"].includes(request.method)) {
           return new Response("User-agent: *\nDisallow: /\n", {
             status: 200,
@@ -1172,6 +1186,22 @@ export default {
         return demoResponse(html, payload.site);
       }
 
+      if (env.SANDBOX_ORIGIN && url.origin === env.SANDBOX_ORIGIN) {
+        if (url.pathname === "/preview" && ["GET", "HEAD"].includes(request.method)) {
+          const allowedAncestors = [
+            env.SITE_ORIGIN,
+            "https://onehtmlapp.com",
+            "https://www.onehtmlapp.com",
+            "https://onehtml.onehtml.workers.dev",
+            "http://127.0.0.1:4391",
+            "http://localhost:4391",
+            "http://43.161.242.122:4391",
+          ].filter(Boolean);
+          const frameAncestorsOrigin = Array.from(new Set(allowedAncestors)).join(" ");
+          return demoResponse(previewRunnerHtml(env.SITE_ORIGIN || siteOrigin), frameAncestorsOrigin);
+        }
+      }
+
       if (url.pathname.startsWith("/api/")) return await api(request, env, url);
       if (url.pathname.startsWith("/play/"))
         return new Response("Open this work from its isolated player.", {
@@ -1205,12 +1235,12 @@ export default {
         return await renderSitemap(env, siteOrigin);
       }
 
-      if ((url.pathname === "/" || url.pathname === "/index.html") && request.method === "GET") {
+      if ((url.pathname === "/" || url.pathname === "/index.html" || url.pathname === "/preview") && ["GET", "HEAD"].includes(request.method)) {
         return await renderHome(env, siteOrigin);
       }
 
       const workMatch = url.pathname.match(/^\/work\/([a-z0-9-]+)$/);
-      if (workMatch && request.method === "GET") {
+      if (workMatch && ["GET", "HEAD"].includes(request.method)) {
         const work = await env.DB.prepare(
           "SELECT * FROM works WHERE id=? AND status='published'",
         )

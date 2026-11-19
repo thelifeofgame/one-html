@@ -32,6 +32,7 @@ async function fixture(t) {
   });
   const env = {
     ...store,
+    SITE_ORIGIN: origin,
     SANDBOX_ORIGIN: "https://play.onehtml.test",
     PLAY_TOKEN_SECRET: "test-only-play-signing-key-for-local-tests",
     ASSETS: {
@@ -931,4 +932,35 @@ test("administrator preview only executes on the isolated player", async (t) => 
   );
   assert.equal(await preview.text(), validHtml);
   assert.equal((await f.request("/api/me", { sandbox: true })).status, 404);
+});
+
+test("isolated playground preview runner executes on sandbox origin with strict CSP", async (t) => {
+  const f = await fixture(t);
+
+  // 1. Check /preview on main site returns home/playground SPA shell
+  const mainPreview = await f.request("/preview");
+  assert.equal(mainPreview.status, 200);
+  const mainHtml = await mainPreview.text();
+  assert.match(mainHtml, /id="preview-playground"/);
+
+  // 2. Check /preview on sandbox origin returns runner page
+  const sandboxPreview = await f.request("/preview", { sandbox: true });
+  assert.equal(sandboxPreview.status, 200);
+  const runnerHtml = await sandboxPreview.text();
+  assert.match(runnerHtml, /OneHTML Sandbox Runner/);
+  assert.match(runnerHtml, /onehtml:preview:ready/);
+  assert.match(runnerHtml, /onehtml:preview:render/);
+
+  // 3. Verify CSP headers on sandbox runner
+  const csp = sandboxPreview.headers.get("content-security-policy");
+  assert.match(csp, /sandbox allow-scripts/);
+  assert.match(csp, /connect-src 'none'/);
+  assert.match(csp, /script-src 'unsafe-inline'/);
+  assert.match(csp, new RegExp(`frame-ancestors ${origin}`));
+
+  // 4. Verify robots tag on sandbox runner
+  assert.equal(
+    sandboxPreview.headers.get("x-robots-tag"),
+    "noindex, nofollow, noarchive, nosnippet",
+  );
 });
