@@ -634,6 +634,9 @@ dialog.medium {
     font-size: 44px;
     letter-spacing: -2.4px;
   }
+  html[lang^="zh"] .hero h1 {
+    letter-spacing: -0.02em;
+  }
   .hero-description {
     font-size: 12px;
   }
@@ -749,6 +752,9 @@ dialog.medium {
     font-size: clamp(35px, 11.5vw, 62px);
     letter-spacing: -2.8px;
     margin-bottom: 22px;
+  }
+  html[lang^="zh"] .hero h1 {
+    letter-spacing: -0.02em;
   }
   .hero-description {
     font-size: 12px;

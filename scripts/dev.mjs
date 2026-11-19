@@ -87,7 +87,9 @@ const ASSETS = {
 
     if (path.startsWith("/covers/")) {
       headers.set("Cache-Control", "public, max-age=2592000, immutable");
-    } else if ([".css", ".js", ".svg", ".ico", ".png", ".webp"].includes(ext)) {
+    } else if ([".css", ".js"].includes(ext)) {
+      headers.set("Cache-Control", "public, max-age=300, stale-while-revalidate=86400");
+    } else if ([".svg", ".ico", ".png", ".webp"].includes(ext)) {
       headers.set("Cache-Control", "public, max-age=86400");
     } else {
       headers.set("Cache-Control", "no-cache");

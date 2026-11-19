@@ -1,4 +1,4 @@
-import { createPlaygroundUI } from "./playground.js";
+import { createPlaygroundUI } from "./playground.js?v=20261119b";
 import { art } from "./art.js";
 import { createPlayer } from "./player.js";
 
@@ -240,8 +240,8 @@ function render() {
   );
   $("#main-nav").innerHTML = [
     ["discover", t("Discover", "发现")],
-    ["preview", t("HTML Preview", "HTML 预览")],
     ["leaderboard", t("Leaderboard", "排行榜")],
+    ["preview", t("HTML Preview", "HTML 预览")],
     ["saved", t("My collection", "我的收藏")],
   ]
     .map(

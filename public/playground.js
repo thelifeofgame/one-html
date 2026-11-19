@@ -262,7 +262,7 @@ export function createPlaygroundUI({ state, t, icon, toast, openUpload }) {
         <div class="pane-header">
           <div class="pane-title-group">
             <span class="pane-title">${icon("code")}<span>${t("HTML Source", "HTML 源代码")}</span></span>
-            <span class="code-size-badge" id="playground-size-badge">${currentCode.length} chars · ${formatByteSize(codeBytes)}</span>
+            <span class="code-size-badge" id="playground-size-badge" title="${currentCode.length} chars · ${formatByteSize(codeBytes)}">${formatByteSize(codeBytes)}</span>
           </div>
           <div class="pane-actions">
             <select class="playground-select" id="playground-template-select" title="${t("Choose template", "选择模板")}">
@@ -299,8 +299,9 @@ export function createPlaygroundUI({ state, t, icon, toast, openUpload }) {
             <span>${t("Live Auto-Run (400ms)", "实时自动渲染 (400ms)")}</span>
           </label>
           <div class="pane-footer-right">
+            <span class="pg-char-count" id="pg-char-count">${currentCode.length.toLocaleString()} ${t("chars", "字符")}</span>
             <button class="button button-primary" id="pg-btn-run">
-              ${icon("play")}<span>${t("Run / Refresh", "立即运行 / 刷新")}</span>
+              ${icon("play")}<span>${t("Run", "运行预览")}</span>
               <kbd class="shortcut-kbd">Ctrl+Enter</kbd>
             </button>
           </div>
@@ -351,13 +352,21 @@ function escapeHtml(str) {
 
 function updateSizeBadge(code) {
   const badge = document.getElementById("playground-size-badge");
-  if (!badge) return;
+  const charCount = document.getElementById("pg-char-count");
+  const len = (code || "").length;
   const bytes = new TextEncoder().encode(code || "").length;
-  badge.textContent = `${(code || "").length} chars · ${formatByteSize(bytes)}`;
-  if (bytes > MAX_HTML_BYTES) {
-    badge.classList.add("size-overflow");
-  } else {
-    badge.classList.remove("size-overflow");
+  if (badge) {
+    badge.textContent = formatByteSize(bytes);
+    badge.title = `${len} chars · ${formatByteSize(bytes)}`;
+    if (bytes > MAX_HTML_BYTES) {
+      badge.classList.add("size-overflow");
+    } else {
+      badge.classList.remove("size-overflow");
+    }
+  }
+  if (charCount) {
+    const unit = document.documentElement.lang?.startsWith("zh") ? "字符" : "chars";
+    charCount.textContent = `${len.toLocaleString()} ${unit}`;
   }
 }
 

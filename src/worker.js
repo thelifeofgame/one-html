@@ -998,7 +998,7 @@ async function renderWorkDetail(work, env, siteOrigin) {
   );
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  headers.set("Cache-Control", "public, max-age=3600, s-maxage=86400");
+  headers.set("Cache-Control", "public, max-age=60, s-maxage=300");
 
   return new Response(modified, { status: 200, headers });
 }
@@ -1083,7 +1083,7 @@ async function renderHome(env, siteOrigin) {
   );
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  headers.set("Cache-Control", "public, max-age=3600, s-maxage=86400");
+  headers.set("Cache-Control", "public, max-age=60, s-maxage=300");
 
   return new Response(modified, { status: 200, headers });
 }
