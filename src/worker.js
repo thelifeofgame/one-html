@@ -834,7 +834,7 @@ function htmlEscape(str) {
 
 function resolveCoverUrl(work, siteOrigin) {
   if (!work.cover || work.cover === "custom") {
-    return `${siteOrigin}/favicon.svg`;
+    return `${siteOrigin}/covers/default-og.png`;
   }
   let cover = String(work.cover).trim();
   if (cover.startsWith("http://") || cover.startsWith("https://")) {
@@ -937,6 +937,7 @@ async function renderWorkDetail(work, env, siteOrigin) {
             <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
             <span>Play ${htmlEscape(work.title)}</span>
           </button>
+          <a class="button button-outline" href="${siteOrigin}/preview?work=${htmlEscape(work.id)}">Open in Preview</a>
           <small>Click to start · Runs inside isolated sandbox</small>
         </div>
       </div>
@@ -1030,7 +1031,7 @@ async function renderHome(env, siteOrigin) {
   const titleText = "OneHTML - Run, Host & Share Single-File HTML5 & AI Web Apps Online";
   const descText = "Run, host & share single-file HTML5 & AI web apps online. Discover interactive web tools, lightweight games, and creative experiments in an isolated sandbox.";
   const homeUrl = `${siteOrigin}/`;
-  const defaultOgImage = `${siteOrigin}/covers/q1k3.png`;
+  const defaultOgImage = `${siteOrigin}/covers/default-og.png`;
 
   const schema = {
     "@context": "https://schema.org",
@@ -1101,6 +1102,79 @@ async function renderHome(env, siteOrigin) {
   return new Response(modified, { status: 200, headers });
 }
 
+async function renderPreview(env, siteOrigin) {
+  const baseAsset = await env.ASSETS.fetch(new Request(`${siteOrigin}/index.html`));
+  const baseHtml = await baseAsset.text();
+
+  const titleText = "Online HTML Preview & AI Artifact Sandbox Runner — OneHTML";
+  const descText =
+    "Paste and run single-file HTML5, Claude Artifacts, and GPT web demos online in OneHTML's isolated dual-domain sandbox runner. Zero setup, strict CSP, instant live preview.";
+  const previewUrl = `${siteOrigin}/preview`;
+  const defaultOgImage = `${siteOrigin}/covers/default-og.png`;
+
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "OneHTML Live HTML Preview Workbench",
+    "url": previewUrl,
+    "description": descText,
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Any",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD",
+    },
+  };
+
+  const seoTags = [
+    `<meta name="description" content="${htmlEscape(descText)}" />`,
+    `<link rel="canonical" href="${htmlEscape(previewUrl)}" />`,
+    `<meta property="og:type" content="website" />`,
+    `<meta property="og:title" content="${htmlEscape(titleText)}" />`,
+    `<meta property="og:description" content="${htmlEscape(descText)}" />`,
+    `<meta property="og:url" content="${htmlEscape(previewUrl)}" />`,
+    `<meta property="og:image" content="${htmlEscape(defaultOgImage)}" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:title" content="${htmlEscape(titleText)}" />`,
+    `<meta name="twitter:description" content="${htmlEscape(descText)}" />`,
+    `<meta name="twitter:image" content="${htmlEscape(defaultOgImage)}" />`,
+    `<script type="application/ld+json">${JSON.stringify(schema)}<\/script>`,
+  ].join("\n    ");
+
+  let modified = baseHtml
+    .replace(/<title>[^<]*<\/title>/i, `<title>${htmlEscape(titleText)}<\/title>`)
+    .replace(/<meta\s+name=['"]description['"][^>]*\/?>/i, "");
+
+  modified = modified.replace("<head>", `<head>\n    ${seoTags}`);
+
+  const previewNoscript = `
+    <noscript>
+      <section class="collection-prerender">
+        <h1>OneHTML Online HTML5 &amp; AI Artifact Preview Sandbox</h1>
+        <p>Run single-file HTML5 apps, Claude Artifacts, and GPT web demos directly in a zero-trust dual-domain browser sandbox with strict CSP isolation.</p>
+        <p><a href="${siteOrigin}/">Browse all single-file HTML creations on OneHTML</a></p>
+      </section>
+    </noscript>`;
+
+  modified = modified.replace('<main id="main-content">', `<main id="main-content">\n    ${previewNoscript}`);
+
+  const headers = new Headers(baseAsset.headers);
+  headers.set("Content-Type", "text/html; charset=utf-8");
+  headers.set(
+    "Content-Security-Policy",
+    mainCsp +
+      (env.SANDBOX_ORIGIN
+        ? `; frame-src 'self' ${env.SANDBOX_ORIGIN}`
+        : "; frame-src 'self'"),
+  );
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  headers.set("Cache-Control", "public, max-age=60, s-maxage=300");
+
+  return new Response(modified, { status: 200, headers });
+}
+
 async function renderSitemap(env, siteOrigin) {
   const works = (
     await env.DB.prepare(
@@ -1110,6 +1184,7 @@ async function renderSitemap(env, siteOrigin) {
 
   const urls = [
     `  <url>\n    <loc>${xmlEscape(siteOrigin)}/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>`,
+    `  <url>\n    <loc>${xmlEscape(siteOrigin)}/preview</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.9</priority>\n  </url>`,
     ...works.map((w) => {
       let date;
       try {
@@ -1248,8 +1323,12 @@ export default {
         return await renderSitemap(env, siteOrigin);
       }
 
-      if ((url.pathname === "/" || url.pathname === "/index.html" || url.pathname === "/preview") && ["GET", "HEAD"].includes(request.method)) {
+      if ((url.pathname === "/" || url.pathname === "/index.html") && ["GET", "HEAD"].includes(request.method)) {
         return await renderHome(env, siteOrigin);
+      }
+
+      if (url.pathname === "/preview" && ["GET", "HEAD"].includes(request.method)) {
+        return await renderPreview(env, siteOrigin);
       }
 
       const workMatch = url.pathname.match(/^\/work\/([a-z0-9-]+)$/);

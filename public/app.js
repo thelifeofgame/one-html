@@ -1,4 +1,4 @@
-import { createPlaygroundUI } from "./playground.js?v=20261119b";
+import { createPlaygroundUI, loadWorkIntoPlayground } from "./playground.js?v=20261120a";
 import { art } from "./art.js";
 import { createPlayer } from "./player.js";
 
@@ -555,6 +555,9 @@ const WORK_TAGS_MAP = {
   "openai-ocean": ["#ThreeJS", "#WebGL", "#Shader", "#Simulation", "#AIWebApps", "#SingleFileHTML"],
   "openai-solar": ["#ThreeJS", "#WebGL", "#3DAnimation", "#Educational", "#AIWebApps", "#SingleFileHTML"],
   "openai-lights": ["#Canvas", "#WebAudio", "#AudioAPI", "#GenerativeArt", "#AIWebApps", "#SingleFileHTML"],
+  "markflow-mindmap": ["#WebTool", "#Productivity", "#SVG", "#Markdown", "#Mindmap", "#SingleFileHTML"],
+  "json-regex-lab": ["#WebTool", "#Productivity", "#JSON", "#Regex", "#DevTools", "#SingleFileHTML"],
+  "css-gradient-studio": ["#WebTool", "#Productivity", "#CSS", "#DesignTools", "#WCAG", "#SingleFileHTML"],
 };
 
 function getWorkTechTags(work) {
@@ -602,7 +605,7 @@ async function openWork(workId) {
   history.replaceState(null, "", `#work/${work.id}`);
   const tags = getWorkTechTags(work);
   openModal(
-    `<div class="player-header"><div class="player-heading"><span class="player-badge">${artwork(work)}</span><div><h2>${esc(title(work))}</h2><p>${esc(work.credit)} · ${categoryName(work.category)}${work.original ? " · " + t("Original demo", "本站原创示例") : ""}</p></div></div>${closeButton()}</div><div class="player-stage" id="player-stage">${artwork(work)}<div class="launch-overlay">${button(t("Let’s play", "开始体验"), "launch", "button-primary", "play")}<small>${t("Click to start · Sound may be enabled", "点击后运行 · 部分作品带有声音")}</small></div></div><div class="player-actions"><button class="button button-outline ${work.liked ? "active" : ""}" data-like="${work.id}" aria-pressed="${Boolean(work.liked)}">${icon("heart")}<span>${work.likes}</span></button><button class="button button-outline" data-save="${work.id}" aria-pressed="${Boolean(work.saved)}">${icon("bookmark")}<span>${work.saved ? t("Saved", "已收藏") : t("Save", "收藏")}</span></button>${button(t("Share", "分享"), "share", "button-outline", "share")}${button(t("Fullscreen", "全屏"), "fullscreen", "button-outline", "fullscreen")}<button class="report-button" data-action="report">${t("Report an issue", "举报问题")}</button></div><div class="detail-columns"><div><p class="detail-description">${esc(description(work))}</p><div class="work-tech-tags" style="margin-bottom:16px;">${tags.map((t) => `<span class="tech-tag">${esc(t)}</span>`).join(" ")}</div><div class="detail-label">${t("A little conversation", "聊聊这个作品")}</div>${state.user ? `<form id="comment-form" class="comment-form"><textarea name="body" maxlength="2000" placeholder="${t("What do you think?", "你觉得怎么样？")}" aria-label="${t("Your comment", "你的评论")}" required></textarea><button class="button button-dark" type="submit">${t("Post", "发送")}</button></form>` : `<p class="modal-copy"><button class="text-button" data-action="login">${t("Sign in to join the conversation →", "登录，加入讨论 →")}</button></p>`}<div id="comments"><p class="no-comments">${t("Loading comments…", "正在加载评论…")}</p></div></div><aside class="detail-meta"><dl><div><dt>${t("Created by", "创作者")}</dt><dd>${esc(work.credit)}</dd></div><div><dt>${t("License", "作品许可")}</dt><dd>${esc(work.license)}</dd></div><div><dt>${t("Source", "作品来源")}</dt><dd>${work.source_url ? `<a href="${esc(work.source_url)}" target="_blank" rel="noopener noreferrer">${t("Visit original source ↗", "查看原始来源 ↗")}</a>` : work.original ? t("OneHTML original example", "OneHTML 本站原创示例") : t("Submitted by creator", "创作者投稿")}</dd></div><div><dt>${t("Format", "作品格式")}</dt><dd>${t("One HTML · Runs in your browser", "单个 HTML · 浏览器运行")}</dd></div></dl></aside></div>`,
+    `<div class="player-header"><div class="player-heading"><span class="player-badge">${artwork(work)}</span><div><h2>${esc(title(work))}</h2><p>${esc(work.credit)} · ${categoryName(work.category)}${work.original ? " · " + t("Original demo", "本站原创示例") : ""}</p></div></div>${closeButton()}</div><div class="player-stage" id="player-stage">${artwork(work)}<div class="launch-overlay">${button(t("Let’s play", "开始体验"), "launch", "button-primary", "play")}<small>${t("Click to start · Sound may be enabled", "点击后运行 · 部分作品带有声音")}</small></div></div><div class="player-actions"><button class="button button-outline ${work.liked ? "active" : ""}" data-like="${work.id}" aria-pressed="${Boolean(work.liked)}">${icon("heart")}<span>${work.likes}</span></button><button class="button button-outline" data-save="${work.id}" aria-pressed="${Boolean(work.saved)}">${icon("bookmark")}<span>${work.saved ? t("Saved", "已收藏") : t("Save", "收藏")}</span></button><button class="button button-outline" data-open-preview="${work.id}">${icon("code")}${t("Open in Preview", "在预览台打开调试")}</button>${oldModalActions}<button class="report-button" data-action="report">${t("Report an issue", "举报问题")}</button></div><div class="detail-columns"><div><p class="detail-description">${esc(description(work))}</p><div class="work-tech-tags" style="margin-bottom:16px;">${tags.map((t) => `<span class="tech-tag">${esc(t)}</span>`).join(" ")}</div><div class="detail-label">${t("A little conversation", "聊聊这个作品")}</div>${state.user ? `<form id="comment-form" class="comment-form"><textarea name="body" maxlength="2000" placeholder="${t("What do you think?", "你觉得怎么样？")}" aria-label="${t("Your comment", "你的评论")}" required></textarea><button class="button button-dark" type="submit">${t("Post", "发送")}</button></form>` : `<p class="modal-copy"><button class="text-button" data-action="login">${t("Sign in to join the conversation →", "登录，加入讨论 →")}</button></p>`}<div id="comments"><p class="no-comments">${t("Loading comments…", "正在加载评论…")}</p></div></div><aside class="detail-meta"><dl><div><dt>${t("Created by", "创作者")}</dt><dd>${esc(work.credit)}</dd></div><div><dt>${t("License", "作品许可")}</dt><dd>${esc(work.license)}</dd></div><div><dt>${t("Source", "作品来源")}</dt><dd>${work.source_url ? `<a href="${esc(work.source_url)}" target="_blank" rel="noopener noreferrer">${t("Visit original source ↗", "查看原始来源 ↗")}</a>` : work.original ? t("OneHTML original example", "OneHTML 本站原创示例") : t("Submitted by creator", "创作者投稿")}</dd></div><div><dt>${t("Format", "作品格式")}</dt><dd>${t("One HTML · Runs in your browser", "单个 HTML · 浏览器运行")}</dd></div></dl></aside></div>`,
     "wide",
     "work",
   );
@@ -904,6 +907,17 @@ document.addEventListener("click", async (event) => {
   const element = event.target.closest("button,[data-view]");
   if (!element) return;
   try {
+    if (element.dataset.openPreview) {
+      const workId = element.dataset.openPreview;
+      const workObj = state.works.find((w) => w.id === workId);
+      closeModal();
+      state.view = "preview";
+      try { history.pushState(null, "", `/preview?work=${encodeURIComponent(workId)}`); } catch(_) {}
+      render();
+      $("#preview-playground")?.scrollIntoView({ behavior: "smooth" });
+      await loadWorkIntoPlayground({ workId, workObj, state, t, icon, toast });
+      return;
+    }
     if (element.dataset.work) return await openWork(element.dataset.work);
     if (element.dataset.versions)
       return await openVersions(element.dataset.versions);
@@ -957,7 +971,7 @@ document.addEventListener("click", async (event) => {
       state.search = "";
       render();
       if (state.view === "preview") {
-        if (location.pathname !== "/preview") {
+        if (location.pathname !== "/preview" || location.search) {
           try { history.pushState(null, "", "/preview"); } catch(_) {}
         }
         $("#preview-playground")?.scrollIntoView({ behavior: "smooth" });
@@ -1312,6 +1326,13 @@ window.addEventListener("popstate", () => {
     state.view = nextView;
     render();
   }
+  if (nextView === "preview") {
+    const workParam = new URLSearchParams(location.search).get("work");
+    if (workParam) {
+      const workObj = state.works.find((w) => w.id === workParam);
+      loadWorkIntoPlayground({ workId: workParam, workObj, state, t, icon, toast });
+    }
+  }
 });
 window.addEventListener("hashchange", () => {
   const match = location.hash.match(/^#work\/([a-z0-9-]+)$/);
@@ -1319,7 +1340,7 @@ window.addEventListener("hashchange", () => {
   else if ($("#app-modal").open) closeModal();
 });
 load()
-  .then(() => {
+  .then(async () => {
     const url = new URL(location.href);
     const error = url.searchParams.get("auth_error");
     const signedIn = url.searchParams.get("auth") === "google";
@@ -1355,6 +1376,11 @@ load()
     if (location.pathname === "/preview" || location.hash === "#preview") {
       state.view = "preview";
       render();
+      const workParam = new URLSearchParams(location.search).get("work");
+      if (workParam) {
+        const workObj = state.works.find((w) => w.id === workParam);
+        await loadWorkIntoPlayground({ workId: workParam, workObj, state, t, icon, toast });
+      }
     }
     const pathMatch = location.pathname.match(/^\/work\/([a-z0-9-]+)$/);
     const match = location.hash.match(/^#work\/([a-z0-9-]+)$/);

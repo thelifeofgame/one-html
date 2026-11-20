@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MarkFlow Mindmap — Markdown to Interactive SVG Mindmap</title>
+<style>
+  :root {
+    --bg: #f8f7f3;
+    --panel: #ffffff;
+    --border: #e5e2d8;
+    --ink: #1e201d;
+    --muted: #6c6f67;
+    --accent: #ea580c;
+    --accent-soft: #fff1eb;
+    --canvas-bg: #fcfbf8;
+    --node-bg: #ffffff;
+    --node-border: #d6d3c7;
+    --shadow: 0 4px 18px rgba(24, 24, 20, 0.06);
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+  [data-theme="midnight"] {
+    --bg: #0f172a;
+    --panel: #162033;
+    --border: #26344d;
+    --ink: #f1f5f9;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent-soft: #0c2b44;
+    --canvas-bg: #0b1220;
+    --node-bg: #1e293b;
+    --node-border: #334155;
+    --shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  }
+  [data-theme="forest"] {
+    --bg: #f2f6f3;
+    --panel: #ffffff;
+    --border: #d4e0d7;
+    --ink: #17251c;
+    --muted: #53695b;
+    --accent: #15803d;
+    --accent-soft: #e8f7ed;
+    --canvas-bg: #f8fbf9;
+    --node-bg: #ffffff;
+    --node-border: #b8cebf;
+  }
+  [data-theme="cyber"] {
+    --bg: #120f1d;
+    --panel: #1b162b;
+    --border: #332952;
+    --ink: #f5f3ff;
+    --muted: #a79ec7;
+    --accent: #f43f5e;
+    --accent-soft: #36162b;
+    --canvas-bg: #0d0a16;
+    --node-bg: #231c38;
+    --node-border: #44376d;
+    --shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font);
+    -webkit-font-smoothing: antialiased;
+  }
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+  }
+  .topbar {
+    height: 52px;
+    padding: 0 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: -0.2px;
+    white-space: nowrap;
+  }
+  .brand-mark {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    background: var(--accent);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 800;
+  }
+  .brand-sub {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .btn, .select, .search-input {
+    height: 32px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 0 10px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .btn-primary:hover { opacity: 0.92; color: #fff; }
+  .search-input {
+    width: 150px;
+    cursor: text;
+    font-weight: 500;
+    outline: none;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .workspace {
+    flex: 1;
+    display: grid;
+    grid-template-columns: minmax(290px, 34%) 1fr;
+    min-height: 0;
+  }
+  .editor-pane {
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    background: var(--panel);
+    min-height: 0;
+  }
+  .pane-head {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+  .editor-stats {
+    font-family: var(--mono);
+    font-size: 11px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+  textarea.outline-input {
+    flex: 1;
+    width: 100%;
+    border: none;
+    outline: none;
+    resize: none;
+    padding: 14px 16px;
+    background: transparent;
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    tab-size: 2;
+  }
+  .editor-foot {
+    padding: 8px 14px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .canvas-pane {
+    position: relative;
+    background: var(--canvas-bg);
+    overflow: hidden;
+    user-select: none;
+    background-image: radial-gradient(var(--border) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  svg#mindmap-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: grab;
+  }
+  svg#mindmap-svg.panning { cursor: grabbing; }
+  .canvas-controls {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--panel);
+    padding: 6px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+  }
+  .zoom-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 44px;
+    text-align: center;
+    color: var(--muted);
+  }
+  .canvas-tip {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    color: var(--muted);
+    box-shadow: var(--shadow);
+    pointer-events: none;
+  }
+  .toast {
+    position: fixed;
+    top: 64px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-10px);
+    background: var(--ink);
+    color: var(--panel);
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.2s ease;
+    z-index: 50;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (max-width: 820px) {
+    .workspace { grid-template-columns: 1fr; grid-template-rows: 38% 62%; }
+    .editor-pane { border-right: none; border-bottom: 1px solid var(--border); }
+    .brand-sub, .canvas-tip { display: none; }
+  }
+</style>
+</head>
+<body data-theme="editorial">
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">M</span>
+      <span>MarkFlow</span>
+      <span class="brand-sub" data-i18n="subtitle">Markdown → SVG Mindmap</span>
+    </div>
+    <div class="toolbar">
+      <input type="search" id="search-input" class="search-input" placeholder="Filter nodes…" />
+      <select id="preset-select" class="select" aria-label="Preset">
+        <option value="launch">Product Launch</option>
+        <option value="ai">AI Agent Stack</option>
+        <option value="study">WebGL Learning Map</option>
+      </select>
+      <select id="theme-select" class="select" aria-label="Theme">
+        <option value="editorial">Editorial Cream</option>
+        <option value="midnight">Midnight Slate</option>
+        <option value="forest">Forest Sage</option>
+        <option value="cyber">Cyber Neon</option>
+      </select>
+      <button class="btn" id="btn-expand-all" data-i18n="expandAll">Expand All</button>
+      <button class="btn" id="btn-export-svg">SVG</button>
+      <button class="btn btn-primary" id="btn-export-png">PNG</button>
+      <button class="btn" id="btn-lang">中文</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="editor-pane">
+      <div class="pane-head">
+        <span data-i18n="outlineTitle">MARKDOWN OUTLINE</span>
+        <span class="editor-stats" id="node-count">0 nodes</span>
+      </div>
+      <textarea id="outline-input" class="outline-input" spellcheck="false"></textarea>
+      <div class="editor-foot">
+        <span data-i18n="editorHint">Use # Headings or 2-space indent (- item) · Tab to indent</span>
+        <button class="btn" id="btn-format" style="height:24px;font-size:11px;padding:0 8px;" data-i18n="tidyBtn">Tidy</button>
+      </div>
+    </section>
+
+    <section class="canvas-pane" id="canvas-pane">
+      <svg id="mindmap-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="canvas-tip" data-i18n="canvasTip">Drag to pan · Wheel to zoom · Click badge to collapse</div>
+      <div class="canvas-controls">
+        <button class="btn" id="btn-zoom-out" title="Zoom Out">−</button>
+        <span class="zoom-label" id="zoom-label">100%</span>
+        <button class="btn" id="btn-zoom-in" title="Zoom In">+</button>
+        <button class="btn" id="btn-fit" data-i18n="fitBtn">Fit</button>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const I18N = {
+    en: {
+      subtitle: "Markdown → SVG Mindmap",
+      outlineTitle: "MARKDOWN OUTLINE",
+      editorHint: "Use # Headings or 2-space indent (- item) · Tab to indent",
+      tidyBtn: "Tidy",
+      expandAll: "Expand All",
+      fitBtn: "Fit",
+      canvasTip: "Drag to pan · Wheel to zoom · Click badge to collapse",
+      searchPlaceholder: "Filter nodes…",
+      nodesUnit: "nodes",
+      langBtn: "中文",
+      exportedSvg: "Exported mindmap.svg",
+      exportedPng: "Exported mindmap.png",
+      tidied: "Outline normalized"
+    },
+    zh: {
+      subtitle: "Markdown 实时转 SVG 思维导图",
+      outlineTitle: "MARKDOWN 缩进大纲",
+      editorHint: "支持 # 标题或 2 空格缩进（- 列表）· Tab 键快捷缩进",
+      tidyBtn: "整理缩进",
+      expandAll: "全部展开",
+      fitBtn: "自适应居中",
+      canvasTip: "拖拽画布平移 · 滚轮缩放 · 点击节点数字徽章折叠/展开",
+      searchPlaceholder: "搜索高亮节点…",
+      nodesUnit: "个节点",
+      langBtn: "EN",
+      exportedSvg: "已导出 mindmap.svg",
+      exportedPng: "已导出 mindmap.png",
+      tidied: "大纲缩进已整理"
+    }
+  };
+
+  const PRESETS = {
+    launch: `# OneHTML Launch Roadmap
+  - Product Core
+    - Dual-Domain Zero-Trust Sandbox
+      - Strict CSP & No Network Access
+      - Signed Short-Lived Play Tickets
+    - Immutable SHA-256 Archive
+    - Live HTML Preview Workbench
+  - Curated Collection
+    - Indie Games & 3D FPS
+    - WebGL Shaders & Simulations
+    - Single-File Dev Tools
+      - MarkFlow Mindmap
+      - JSON & Regex Lab
+      - CSS Gradient Studio
+  - Growth & Community
+    - Technical SEO & Sitemaps
+    - Show HN / Reddit / X Launches
+    - Creator Sponsorships`,
+    ai: `# Generative AI App Stack
+  - Reasoning & Agents
+    - Tool Calling & MCP
+    - Long-Horizon Planning
+    - Memory & Retrieval
+  - Single-File Artifacts
+    - Zero Build Pipeline
+    - Inline Styles & Canvas
+    - Instant Browser Runtime
+  - Safety & Verification
+    - Origin Isolation
+    - Content Hashing
+    - Deterministic Tests`,
+    study: `# WebGL & Graphics Path
+  - Math Foundations
+    - Vectors & Matrices
+    - Quaternions & Camera
+  - Rendering Pipeline
+    - Vertex Shaders (GLSL)
+    - Fragment Lighting & PBR
+    - Framebuffers & Post-FX
+  - Optimization
+    - Instanced Drawing
+    - Texture Atlases`
+  };
+
+  const BRANCH_COLORS = [
+    "#ea580c", "#0284c7", "#16a34a", "#9333ea", "#db2777", "#d97706", "#0d9488"
+  ];
+
+  let lang = "en";
+  let collapsedIds = new Set();
+  let searchQuery = "";
+  let view = { x: 80, y: 0, scale: 1 };
+  let isPanning = false;
+  let panStart = { x: 0, y: 0 };
+
+  const svg = document.getElementById("mindmap-svg");
+  const input = document.getElementById("outline-input");
+  const nodeCountEl = document.getElementById("node-count");
+  const zoomLabel = document.getElementById("zoom-label");
+  const searchInput = document.getElementById("search-input");
+  const toastEl = document.getElementById("toast");
+
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toastEl.classList.remove("show"), 2000);
+  }
+
+  function applyLang() {
+    const dict = I18N[lang];
+    document.querySelectorAll("[data-i18n]").forEach((el) => {
+      const k = el.getAttribute("data-i18n");
+      if (dict[k]) el.textContent = dict[k];
+    });
+    searchInput.placeholder = dict.searchPlaceholder;
+    document.getElementById("btn-lang").textContent = dict.langBtn;
+    render();
+  }
+
+  function parseOutline(text) {
+    const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+    if (!lines.length) {
+      return { id: "root", text: "Empty Mindmap", depth: 0, children: [], color: BRANCH_COLORS[0] };
+    }
+    const items = lines.map((raw, idx) => {
+      const headingMatch = raw.match(/^\s*(#{1,6})\s+(.*)$/);
+      if (headingMatch) {
+        return {
+          id: "n-" + idx,
+          level: headingMatch[1].length - 1,
+          text: headingMatch[2].trim(),
+          children: []
+        };
+      }
+      const indentMatch = raw.match(/^(\s*)(?:[-*+]\s+|\d+\.\s+)?(.*)$/);
+      const spaces = indentMatch[1].replace(/\t/g, "  ").length;
+      const level = Math.floor(spaces / 2) + 1;
+      return {
+        id: "n-" + idx,
+        level,
+        text: (indentMatch[2] || raw).trim(),
+        children: []
+      };
+    });
+
+    const root = { id: "root", text: items[0].text, depth: 0, children: [], color: "#1e201d" };
+    const stack = [{ node: root, level: items[0].level }];
+
+    for (let i = 1; i < items.length; i++) {
+      const it = items[i];
+      const node = { id: it.id, text: it.text || "...", depth: 1, children: [], color: BRANCH_COLORS[0] };
+      while (stack.length > 1 && stack[stack.length - 1].level >= it.level) {
+        stack.pop();
+      }
+      const parent = stack[stack.length - 1].node;
+      node.depth = parent.depth + 1;
+      if (node.depth === 1) {
+        node.color = BRANCH_COLORS[parent.children.length % BRANCH_COLORS.length];
+      } else {
+        node.color = parent.color;
+      }
+      parent.children.push(node);
+      stack.push({ node, level: it.level });
+    }
+    return root;
+  }
+
+  function measureTextWidth(text, isRoot) {
+    let w = 0;
+    for (const ch of text) {
+      w += /[\u4e00-\u9fff\uff00-\uffef]/.test(ch) ? (isRoot ? 15 : 13) : (isRoot ? 8.5 : 7.4);
+    }
+    return Math.max(68, Math.min(280, w + (isRoot ? 36 : 38)));
+  }
+
+  function layoutTree(root) {
+    let totalCount = 0;
+    function prep(node) {
+      totalCount++;
+      node.w = measureTextWidth(node.text, node.depth === 0);
+      node.h = node.depth === 0 ? 42 : 32;
+      const collapsed = collapsedIds.has(node.id);
+      node.visibleChildren = collapsed ? [] : node.children;
+      node.totalDescendants = node.children.length;
+      if (node.visibleChildren.length === 0) {
+        node.subHeight = node.h + 14;
+      } else {
+        let sum = 0;
+        for (const ch of node.visibleChildren) {
+          prep(ch);
+          sum += ch.subHeight;
+        }
+        node.subHeight = Math.max(node.h + 14, sum);
+      }
+    }
+    // Count all nodes even if collapsed
+    (function countAll(n) {
+      totalCount++;
+      n.children.forEach(countAll);
+    })(root);
+    totalCount = 0;
+    prep(root);
+
+    let realCount = 0;
+    (function countReal(n) {
+      realCount++;
+      n.children.forEach(countReal);
+    })(root);
+
+    function assign(node, x, yCenter) {
+      node.x = x;
+      node.y = yCenter;
+      if (!node.visibleChildren.length) return;
+      let cursor = yCenter - node.subHeight / 2;
+      const gapX = node.depth === 0 ? 64 : 52;
+      for (const ch of node.visibleChildren) {
+        const cy = cursor + ch.subHeight / 2;
+        assign(ch, x + node.w + gapX, cy);
+        cursor += ch.subHeight;
+      }
+    }
+    assign(root, 0, 0);
+    return { root, realCount };
+  }
+
+  function svgEl(tag, attrs = {}) {
+    const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+    return el;
+  }
+
+  let lastBounds = { minX: -40, minY: -200, maxX: 700, maxY: 200 };
+
+  function render() {
+    const tree = parseOutline(input.value);
+    const { root, realCount } = layoutTree(tree);
+    nodeCountEl.textContent = `${realCount} ${I18N[lang].nodesUnit}`;
+
+    svg.innerHTML = "";
+    const g = svgEl("g", {
+      id: "viewport-group",
+      transform: `translate(${view.x}, ${view.y}) scale(${view.scale})`
+    });
+
+    const edgesLayer = svgEl("g");
+    const nodesLayer = svgEl("g");
+    g.appendChild(edgesLayer);
+    g.appendChild(nodesLayer);
+    svg.appendChild(g);
+
+    const cs = getComputedStyle(document.body);
+    const nodeBg = cs.getPropertyValue("--node-bg").trim() || "#fff";
+    const nodeBorder = cs.getPropertyValue("--node-border").trim() || "#d6d3c7";
+    const ink = cs.getPropertyValue("--ink").trim() || "#1e201d";
+    const accent = cs.getPropertyValue("--accent").trim() || "#ea580c";
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const q = searchQuery.trim().toLowerCase();
+
+    function drawNode(node) {
+      minX = Math.min(minX, node.x - 20);
+      minY = Math.min(minY, node.y - node.h / 2 - 20);
+      maxX = Math.max(maxX, node.x + node.w + 30);
+      maxY = Math.max(maxY, node.y + node.h / 2 + 20);
+
+      for (const ch of node.visibleChildren) {
+        const x1 = node.x + node.w;
+        const y1 = node.y;
+        const x2 = ch.x;
+        const y2 = ch.y;
+        const mx = (x1 + x2) / 2;
+        edgesLayer.appendChild(svgEl("path", {
+          d: `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`,
+          fill: "none",
+          stroke: ch.color,
+          "stroke-width": node.depth === 0 ? 2.6 : 1.8,
+          "stroke-opacity": 0.78
+        }));
+        drawNode(ch);
+      }
+
+      const isRoot = node.depth === 0;
+      const isMatch = q && node.text.toLowerCase().includes(q);
+      const isDimmed = q && !isMatch;
+
+      const ng = svgEl("g", {
+        transform: `translate(${node.x}, ${node.y - node.h / 2})`,
+        opacity: isDimmed ? "0.32" : "1"
+      });
+
+      const rect = svgEl("rect", {
+        width: node.w,
+        height: node.h,
+        rx: isRoot ? 12 : 8,
+        fill: isRoot ? accent : isMatch ? accent : nodeBg,
+        stroke: isRoot ? accent : isMatch ? accent : node.depth === 1 ? node.color : nodeBorder,
+        "stroke-width": isMatch ? 2.4 : node.depth === 1 ? 1.8 : 1.2
+      });
+      ng.appendChild(rect);
+
+      if (!isRoot) {
+        ng.appendChild(svgEl("rect", {
+          x: 0, y: 5, width: 4, height: node.h - 10, rx: 2,
+          fill: node.color
+        }));
+      }
+
+      const labelText = node.text.length > 34 ? node.text.slice(0, 32) + "…" : node.text;
+      const txt = svgEl("text", {
+        x: isRoot ? node.w / 2 : 14,
+        y: node.h / 2 + 4.5,
+        "text-anchor": isRoot ? "middle" : "start",
+        fill: isRoot || isMatch ? "#ffffff" : ink,
+        "font-size": isRoot ? 14 : 12.5,
+        "font-weight": isRoot || node.depth === 1 ? 700 : 500,
+        "font-family": "-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif"
+      });
+      txt.textContent = labelText;
+      ng.appendChild(txt);
+
+      if (node.children.length > 0 && !isRoot) {
+        const isCollapsed = collapsedIds.has(node.id);
+        const badge = svgEl("g", {
+          transform: `translate(${node.w + 1}, ${node.h / 2})`,
+          style: "cursor:pointer"
+        });
+        badge.appendChild(svgEl("circle", {
+          r: 9,
+          fill: isCollapsed ? node.color : nodeBg,
+          stroke: node.color,
+          "stroke-width": 1.5
+        }));
+        const bTxt = svgEl("text", {
+          x: 0, y: 3.5,
+          "text-anchor": "middle",
+          "font-size": 10,
+          "font-weight": 700,
+          fill: isCollapsed ? "#ffffff" : node.color
+        });
+        bTxt.textContent = isCollapsed ? String(node.children.length) : "−";
+        badge.appendChild(bTxt);
+        badge.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (collapsedIds.has(node.id)) collapsedIds.delete(node.id);
+          else collapsedIds.add(node.id);
+          render();
+        });
+        ng.appendChild(badge);
+      }
+
+      nodesLayer.appendChild(ng);
+    }
+
+    drawNode(root);
+    lastBounds = { minX, minY, maxX, maxY };
+    zoomLabel.textContent = `${Math.round(view.scale * 100)}%`;
+  }
+
+  function fitView() {
+    const pane = document.getElementById("canvas-pane");
+    const pw = pane.clientWidth || 800;
+    const ph = pane.clientHeight || 540;
+    const bw = Math.max(200, lastBounds.maxX - lastBounds.minX);
+    const bh = Math.max(160, lastBounds.maxY - lastBounds.minY);
+    const scale = Math.max(0.35, Math.min(1.25, Math.min((pw - 60) / bw, (ph - 60) / bh)));
+    view.scale = scale;
+    view.x = (pw - bw * scale) / 2 - lastBounds.minX * scale;
+    view.y = (ph - bh * scale) / 2 - lastBounds.minY * scale;
+    render();
+  }
+
+  function updateTransform() {
+    const g = document.getElementById("viewport-group");
+    if (g) g.setAttribute("transform", `translate(${view.x}, ${view.y}) scale(${view.scale})`);
+    zoomLabel.textContent = `${Math.round(view.scale * 100)}%`;
+  }
+
+  svg.addEventListener("pointerdown", (e) => {
+    if (e.target.closest("g[style*='cursor:pointer']")) return;
+    isPanning = true;
+    svg.classList.add("panning");
+    panStart = { x: e.clientX - view.x, y: e.clientY - view.y };
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!isPanning) return;
+    view.x = e.clientX - panStart.x;
+    view.y = e.clientY - panStart.y;
+    updateTransform();
+  });
+  window.addEventListener("pointerup", () => {
+    isPanning = false;
+    svg.classList.remove("panning");
+  });
+
+  document.getElementById("canvas-pane").addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const rect = svg.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const factor = e.deltaY < 0 ? 1.1 : 0.9;
+    const nextScale = Math.max(0.25, Math.min(2.5, view.scale * factor));
+    view.x = mx - (mx - view.x) * (nextScale / view.scale);
+    view.y = my - (my - view.y) * (nextScale / view.scale);
+    view.scale = nextScale;
+    updateTransform();
+  }, { passive: false });
+
+  document.getElementById("btn-zoom-in").addEventListener("click", () => {
+    view.scale = Math.min(2.5, view.scale * 1.15);
+    updateTransform();
+  });
+  document.getElementById("btn-zoom-out").addEventListener("click", () => {
+    view.scale = Math.max(0.25, view.scale * 0.85);
+    updateTransform();
+  });
+  document.getElementById("btn-fit").addEventListener("click", fitView);
+
+  document.getElementById("btn-expand-all").addEventListener("click", () => {
+    collapsedIds.clear();
+    render();
+    fitView();
+  });
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const s = input.selectionStart;
+      const end = input.selectionEnd;
+      input.value = input.value.slice(0, s) + "  " + input.value.slice(end);
+      input.selectionStart = input.selectionEnd = s + 2;
+      render();
+    }
+  });
+  input.addEventListener("input", render);
+
+  searchInput.addEventListener("input", (e) => {
+    searchQuery = e.target.value;
+    render();
+  });
+
+  document.getElementById("preset-select").addEventListener("change", (e) => {
+    input.value = PRESETS[e.target.value] || PRESETS.launch;
+    collapsedIds.clear();
+    render();
+    fitView();
+  });
+
+  document.getElementById("theme-select").addEventListener("change", (e) => {
+    document.body.setAttribute("data-theme", e.target.value);
+    render();
+  });
+
+  document.getElementById("btn-format").addEventListener("click", () => {
+    const lines = input.value.split(/\r?\n/).filter((l) => l.trim());
+    input.value = lines.map((l, idx) => {
+      if (idx === 0 && !l.trim().startsWith("#")) return "# " + l.trim().replace(/^[-*+]\s+/, "");
+      if (l.trim().startsWith("#")) return l.trim();
+      const spaces = l.match(/^(\s*)/)[1].replace(/\t/g, "  ").length;
+      const lvl = Math.max(1, Math.round(spaces / 2));
+      const clean = l.trim().replace(/^[-*+]\s+/, "");
+      return "  ".repeat(lvl) + "- " + clean;
+    }).join("\n");
+    render();
+    showToast(I18N[lang].tidied);
+  });
+
+  document.getElementById("btn-lang").addEventListener("click", () => {
+    lang = lang === "en" ? "zh" : "en";
+    applyLang();
+  });
+
+  function buildExportSvgString() {
+    const pad = 40;
+    const w = Math.max(400, Math.ceil(lastBounds.maxX - lastBounds.minX + pad * 2));
+    const h = Math.max(300, Math.ceil(lastBounds.maxY - lastBounds.minY + pad * 2));
+    const cs = getComputedStyle(document.body);
+    const bg = cs.getPropertyValue("--canvas-bg").trim() || "#fcfbf8";
+    const clone = svg.cloneNode(true);
+    clone.setAttribute("width", String(w));
+    clone.setAttribute("height", String(h));
+    clone.setAttribute("viewBox", `${lastBounds.minX - pad} ${lastBounds.minY - pad} ${w} ${h}`);
+    const g = clone.querySelector("#viewport-group");
+    if (g) g.setAttribute("transform", "translate(0,0) scale(1)");
+    const rectBg = svgEl("rect", {
+      x: lastBounds.minX - pad,
+      y: lastBounds.minY - pad,
+      width: w,
+      height: h,
+      fill: bg
+    });
+    clone.insertBefore(rectBg, clone.firstChild);
+    return { svgStr: new XMLSerializer().serializeToString(clone), w, h };
+  }
+
+  document.getElementById("btn-export-svg").addEventListener("click", () => {
+    const { svgStr } = buildExportSvgString();
+    const blob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "markflow-mindmap.svg";
+    a.click();
+    showToast(I18N[lang].exportedSvg);
+  });
+
+  document.getElementById("btn-export-png").addEventListener("click", () => {
+    const { svgStr, w, h } = buildExportSvgString();
+    const img = new Image();
+    const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgStr);
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = w * 2;
+      canvas.height = h * 2;
+      const ctx = canvas.getContext("2d");
+      ctx.scale(2, 2);
+      ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "markflow-mindmap.png";
+        a.click();
+        showToast(I18N[lang].exportedPng);
+      }, "image/png");
+    };
+    img.src = url;
+  });
+
+  input.value = PRESETS.launch;
+  render();
+  setTimeout(fitView, 30);
+})();
+</script>
+</body>
+</html>

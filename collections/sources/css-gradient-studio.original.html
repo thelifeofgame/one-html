@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CSS Gradient Studio — Palette &amp; WCAG Contrast Generator</title>
+<style>
+  :root {
+    --bg: #f6f5f0;
+    --panel: #ffffff;
+    --border: #e2dfd5;
+    --ink: #1b1d1a;
+    --muted: #6c6f67;
+    --accent: #ea580c;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--ink); font-family: var(--font);
+  }
+  .app { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
+  .topbar {
+    height: 52px; padding: 0 16px; background: var(--panel); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-shrink: 0;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14.5px; }
+  .brand-swatch {
+    width: 24px; height: 24px; border-radius: 7px;
+    background: linear-gradient(135deg, #f97316, #ec4899, #6366f1);
+  }
+  .btn {
+    height: 30px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--ink); font-size: 12px; font-weight: 600;
+    font-family: var(--font); cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+    white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .btn-primary:hover { opacity: 0.9; color: #fff; }
+  .btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .layout { flex: 1; display: grid; grid-template-columns: 380px 1fr; min-height: 0; }
+  .sidebar {
+    background: var(--panel); border-right: 1px solid var(--border);
+    padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;
+  }
+  .section-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+    color: var(--muted); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .range-row { display: flex; align-items: center; gap: 10px; }
+  .range-row input[type="range"] { flex: 1; accent-color: var(--accent); cursor: pointer; }
+  .mono-pill {
+    font-family: var(--mono); font-size: 11.5px; font-weight: 700;
+    background: #f1efe7; padding: 3px 8px; border-radius: 6px; min-width: 48px; text-align: center;
+  }
+
+  .stops-list { display: flex; flex-direction: column; gap: 8px; }
+  .stop-row {
+    display: grid; grid-template-columns: 32px 86px 1fr 48px 26px; gap: 6px; align-items: center;
+    background: #faf9f5; border: 1px solid var(--border); padding: 6px 8px; border-radius: 8px;
+  }
+  .stop-row input[type="color"] {
+    width: 30px; height: 26px; border: none; padding: 0; background: none; cursor: pointer; border-radius: 5px;
+  }
+  .hex-input {
+    width: 100%; font-family: var(--mono); font-size: 12px; border: 1px solid var(--border);
+    border-radius: 5px; padding: 4px 6px; background: #fff; color: var(--ink);
+  }
+  .stop-row input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .del-btn {
+    border: none; background: transparent; color: var(--muted); cursor: pointer; font-size: 14px; font-weight: 700;
+  }
+  .del-btn:hover { color: #dc2626; }
+
+  .presets-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .preset-dot {
+    height: 36px; border-radius: 8px; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    cursor: pointer; transition: transform 0.12s ease;
+  }
+  .preset-dot:hover { transform: scale(1.06); }
+
+  .stage-col {
+    display: flex; flex-direction: column; min-height: 0; padding: 16px; gap: 14px; overflow-y: auto;
+  }
+  .preview-canvas {
+    flex: 1; min-height: 240px; border-radius: 16px; position: relative;
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.1); display: flex; flex-direction: column;
+    justify-content: space-between; padding: 24px; overflow: hidden;
+  }
+  .preview-sample-card {
+    background: rgba(255, 255, 255, 0.16); backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.28); border-radius: 14px; padding: 18px 20px;
+    max-width: 440px;
+  }
+  .preview-sample-card h2 { margin: 0 0 6px; font-size: 24px; letter-spacing: -0.4px; }
+  .preview-sample-card p { margin: 0; font-size: 13px; line-height: 1.5; opacity: 0.92; }
+
+  .wcag-bar {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;
+  }
+  .wcag-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+  .wcag-sample {
+    width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 14px; border: 1px solid var(--border); flex-shrink: 0;
+  }
+  .wcag-meta { font-size: 11px; color: var(--muted); }
+  .wcag-meta strong { display: block; font-size: 13px; color: var(--ink); font-family: var(--mono); }
+  .wcag-pill {
+    font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 999px; font-family: var(--mono);
+  }
+  .wcag-pass { background: #dcfce7; color: #166534; }
+  .wcag-aa { background: #fef9c3; color: #854d0e; }
+  .wcag-fail { background: #fee2e2; color: #991b1b; }
+
+  .code-panel {
+    background: #14171c; color: #e2e8f0; border-radius: 12px; padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .code-tabs { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .code-tab-btn {
+    border: none; background: transparent; color: #94a3b8; font-size: 11.5px; font-weight: 700;
+    padding: 4px 10px; border-radius: 6px; cursor: pointer;
+  }
+  .code-tab-btn.active { background: #262c36; color: #fff; }
+  pre.code-out {
+    margin: 0; font-family: var(--mono); font-size: 12px; line-height: 1.55;
+    white-space: pre-wrap; word-break: break-all; color: #93c5fd;
+  }
+  .toast {
+    position: fixed; top: 62px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: #fff; padding: 7px 14px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 40;
+  }
+  .toast.show { opacity: 1; }
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; overflow-y: auto; }
+    html, body, .app { height: auto; overflow: auto; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-swatch"></span>
+      <span>CSS Gradient Studio</span>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <button class="btn" id="btn-random" data-i18n="randomBtn">Randomize</button>
+      <button class="btn" id="btn-reverse" data-i18n="reverseBtn">Reverse</button>
+      <button class="btn" id="btn-svg">SVG</button>
+      <button class="btn" id="btn-png">PNG</button>
+      <button class="btn btn-primary" id="btn-copy-css" data-i18n="copyCss">Copy CSS</button>
+      <button class="btn" id="btn-lang">中文</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div>
+        <div class="section-label" data-i18n="typeLabel">GRADIENT TYPE</div>
+        <div class="seg" id="type-seg">
+          <button class="btn active" data-type="linear">Linear</button>
+          <button class="btn" data-type="radial">Radial</button>
+          <button class="btn" data-type="conic">Conic</button>
+        </div>
+      </div>
+
+      <div id="angle-group">
+        <div class="section-label">
+          <span data-i18n="angleLabel">ANGLE / DIRECTION</span>
+          <span class="mono-pill" id="angle-val">135°</span>
+        </div>
+        <div class="range-row">
+          <input type="range" id="angle-range" min="0" max="360" value="135" />
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">
+          <span data-i18n="stopsLabel">COLOR STOPS</span>
+          <button class="btn" id="btn-add-stop" style="height:24px;font-size:11px;padding:0 8px;">+ Add</button>
+        </div>
+        <div class="stops-list" id="stops-list"></div>
+      </div>
+
+      <div>
+        <div class="section-label" data-i18n="presetsLabel">CURATED PRESETS</div>
+        <div class="presets-grid" id="presets-grid"></div>
+      </div>
+    </aside>
+
+    <main class="stage-col">
+      <div class="preview-canvas" id="preview-canvas">
+        <div class="preview-sample-card" id="sample-card">
+          <h2 id="sample-title">OneHTML Gradient Studio</h2>
+          <p id="sample-desc">Real-time multi-stop CSS gradient builder with built-in WCAG AA/AAA text contrast auditing and CSS custom properties export.</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn" id="btn-toggle-fg" style="background:rgba(255,255,255,0.88);border:none;" data-i18n="toggleText">Toggle Light / Dark Text</button>
+        </div>
+      </div>
+
+      <div class="wcag-bar" id="wcag-bar"></div>
+
+      <div class="code-panel">
+        <div class="code-tabs">
+          <div style="display:flex;gap:4px;">
+            <button class="code-tab-btn active" data-fmt="css">CSS</button>
+            <button class="code-tab-btn" data-fmt="vars">CSS Variables</button>
+            <button class="code-tab-btn" data-fmt="tailwind">Tailwind</button>
+          </div>
+          <button class="btn" id="btn-copy-panel" style="height:24px;font-size:11px;background:#262c36;color:#fff;border-color:#3b4454;" data-i18n="copyBtn">Copy</button>
+        </div>
+        <pre class="code-out" id="code-out"></pre>
+      </div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const I18N = {
+    en: {
+      randomBtn: "Randomize",
+      reverseBtn: "Reverse",
+      copyCss: "Copy CSS",
+      typeLabel: "GRADIENT TYPE",
+      angleLabel: "ANGLE / DIRECTION",
+      stopsLabel: "COLOR STOPS",
+      presetsLabel: "CURATED PRESETS",
+      toggleText: "Toggle Light / Dark Text",
+      copyBtn: "Copy",
+      sampleTitle: "OneHTML Gradient Studio",
+      sampleDesc: "Real-time multi-stop CSS gradient builder with built-in WCAG AA/AAA text contrast auditing and CSS custom properties export.",
+      copied: "Copied to clipboard",
+      langBtn: "中文",
+      stopPrefix: "Stop"
+    },
+    zh: {
+      randomBtn: "随机配色",
+      reverseBtn: "反转方向",
+      copyCss: "复制 CSS",
+      typeLabel: "渐变模式",
+      angleLabel: "角度 / 旋转",
+      stopsLabel: "色标节点",
+      presetsLabel: "精选配色预设",
+      toggleText: "切换深浅预览文字",
+      copyBtn: "复制代码",
+      sampleTitle: "OneHTML 渐变与调色工作台",
+      sampleDesc: "实时拖拽调校多色标线性/径向/角向渐变，自动检测文字 WCAG AA/AAA 无障碍对比度并一键导出 CSS 变量。",
+      copied: "已复制到剪贴板",
+      langBtn: "EN",
+      stopPrefix: "色标"
+    }
+  };
+
+  const PRESETS = [
+    { stops: [{ color: "#ea580c", pos: 0 }, { color: "#ec4899", pos: 52 }, { color: "#6366f1", pos: 100 }], angle: 135 },
+    { stops: [{ color: "#0f172a", pos: 0 }, { color: "#1d4ed8", pos: 55 }, { color: "#38bdf8", pos: 100 }], angle: 120 },
+    { stops: [{ color: "#065f46", pos: 0 }, { color: "#10b981", pos: 50 }, { color: "#a7f3d0", pos: 100 }], angle: 145 },
+    { stops: [{ color: "#f97316", pos: 0 }, { color: "#facc15", pos: 100 }], angle: 90 },
+    { stops: [{ color: "#3b0764", pos: 0 }, { color: "#9333ea", pos: 48 }, { color: "#f43f5e", pos: 100 }], angle: 135 },
+    { stops: [{ color: "#111827", pos: 0 }, { color: "#374151", pos: 100 }], angle: 160 },
+    { stops: [{ color: "#0ea5e9", pos: 0 }, { color: "#2dd4bf", pos: 100 }], angle: 135 },
+    { stops: [{ color: "#fda4af", pos: 0 }, { color: "#fde047", pos: 50 }, { color: "#93c5fd", pos: 100 }], angle: 125 }
+  ];
+
+  let lang = "en";
+  let type = "linear";
+  let angle = 135;
+  let stops = JSON.parse(JSON.stringify(PRESETS[0].stops));
+  let codeFmt = "css";
+  let lightText = true;
+
+  const stopsList = document.getElementById("stops-list");
+  const previewCanvas = document.getElementById("preview-canvas");
+  const sampleCard = document.getElementById("sample-card");
+  const wcagBar = document.getElementById("wcag-bar");
+  const codeOut = document.getElementById("code-out");
+  const angleRange = document.getElementById("angle-range");
+  const angleVal = document.getElementById("angle-val");
+  const toastEl = document.getElementById("toast");
+
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toastEl.classList.remove("show"), 1800);
+  }
+
+  function hexToRgb(hex) {
+    const clean = hex.replace("#", "");
+    const full = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
+    const num = parseInt(full, 16);
+    if (Number.isNaN(num)) return { r: 0, g: 0, b: 0 };
+    return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+  }
+
+  function luminance({ r, g, b }) {
+    const [rs, gs, bs] = [r, g, b].map((c) => {
+      const s = c / 255;
+      return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+  }
+
+  function contrastRatio(hex1, hex2) {
+    const l1 = luminance(hexToRgb(hex1));
+    const l2 = luminance(hexToRgb(hex2));
+    const hi = Math.max(l1, l2), lo = Math.min(l1, l2);
+    return (hi + 0.05) / (lo + 0.05);
+  }
+
+  function gradientExpression() {
+    const sorted = [...stops].sort((a, b) => a.pos - b.pos);
+    const stopStr = sorted.map((s) => `${s.color} ${s.pos}%`).join(", ");
+    if (type === "linear") return `linear-gradient(${angle}deg, ${stopStr})`;
+    if (type === "radial") return `radial-gradient(circle at center, ${stopStr})`;
+    return `conic-gradient(from ${angle}deg at center, ${stopStr})`;
+  }
+
+  function formattedCode() {
+    const grad = gradientExpression();
+    if (codeFmt === "css") return `background: ${grad};`;
+    if (codeFmt === "vars") {
+      const lines = [":root {"];
+      stops.forEach((s, i) => lines.push(`  --grad-stop-${i + 1}: ${s.color};`));
+      lines.push(`  --grad-bg: ${grad};`);
+      lines.push("}");
+      return lines.join("\n");
+    }
+    return `bg-[${grad.replace(/\s+/g, "_")}]`;
+  }
+
+  function renderStops() {
+    stopsList.innerHTML = stops.map((s, idx) => `
+      <div class="stop-row" data-idx="${idx}">
+        <input type="color" value="${s.color}" data-field="color" aria-label="Color ${idx + 1}" />
+        <input type="text" class="hex-input" value="${s.color}" data-field="hex" maxlength="7" />
+        <input type="range" min="0" max="100" value="${s.pos}" data-field="pos" />
+        <span class="mono-pill" style="min-width:42px;font-size:11px;">${s.pos}%</span>
+        <button class="del-btn" data-del="${idx}" title="Remove" ${stops.length <= 2 ? "disabled style='opacity:0.3;cursor:not-allowed;'" : ""}>×</button>
+      </div>
+    `).join("");
+  }
+
+  function renderWcag() {
+    const fg = lightText ? "#ffffff" : "#111827";
+    wcagBar.innerHTML = stops.map((s, idx) => {
+      const ratio = contrastRatio(s.color, fg);
+      const badgeClass = ratio >= 7 ? "wcag-pass" : ratio >= 4.5 ? "wcag-aa" : "wcag-fail";
+      const badgeLabel = ratio >= 7 ? "AAA" : ratio >= 4.5 ? "AA" : "LOW";
+      return `
+        <div class="wcag-card">
+          <div class="wcag-sample" style="background:${s.color};color:${fg};">Aa</div>
+          <div class="wcag-meta" style="flex:1;">
+            <span>${I18N[lang].stopPrefix} #${idx + 1} (${s.color})</span>
+            <strong>${ratio.toFixed(2)}:1</strong>
+          </div>
+          <span class="wcag-pill ${badgeClass}">${badgeLabel}</span>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function renderAll() {
+    const grad = gradientExpression();
+    previewCanvas.style.background = grad;
+    sampleCard.style.color = lightText ? "#ffffff" : "#111827";
+    sampleCard.style.background = lightText ? "rgba(15, 23, 42, 0.25)" : "rgba(255, 255, 255, 0.55)";
+    sampleCard.style.borderColor = lightText ? "rgba(255,255,255,0.28)" : "rgba(17,24,39,0.14)";
+    angleVal.textContent = `${angle}°`;
+    document.getElementById("angle-group").style.display = type === "radial" ? "none" : "block";
+    codeOut.textContent = formattedCode();
+    renderWcag();
+  }
+
+  stopsList.addEventListener("input", (e) => {
+    const row = e.target.closest(".stop-row");
+    if (!row) return;
+    const idx = Number(row.dataset.idx);
+    const field = e.target.dataset.field;
+    if (field === "color") {
+      stops[idx].color = e.target.value;
+      row.querySelector(".hex-input").value = e.target.value;
+    } else if (field === "hex") {
+      if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) {
+        stops[idx].color = e.target.value;
+        row.querySelector('input[type="color"]').value = e.target.value;
+      }
+    } else if (field === "pos") {
+      stops[idx].pos = Number(e.target.value);
+      row.querySelector(".mono-pill").textContent = `${stops[idx].pos}%`;
+    }
+    renderAll();
+  });
+
+  stopsList.addEventListener("click", (e) => {
+    const del = e.target.closest("[data-del]");
+    if (!del || stops.length <= 2) return;
+    stops.splice(Number(del.dataset.del), 1);
+    renderStops();
+    renderAll();
+  });
+
+  document.getElementById("btn-add-stop").addEventListener("click", () => {
+    if (stops.length >= 6) return;
+    const hue = Math.floor(Math.random() * 360);
+    const hex = hslToHex(hue, 78, 56);
+    stops.push({ color: hex, pos: 50 });
+    renderStops();
+    renderAll();
+  });
+
+  function hslToHex(h, s, l) {
+    s /= 100; l /= 100;
+    const a = s * Math.min(l, 1 - l);
+    const f = (n) => {
+      const k = (n + h / 30) % 12;
+      const c = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+      return Math.round(255 * c).toString(16).padStart(2, "0");
+    };
+    return `#${f(0)}${f(8)}${f(4)}`;
+  }
+
+  document.getElementById("type-seg").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-type]");
+    if (!btn) return;
+    type = btn.dataset.type;
+    document.querySelectorAll("#type-seg .btn").forEach((b) => b.classList.toggle("active", b === btn));
+    renderAll();
+  });
+
+  angleRange.addEventListener("input", (e) => {
+    angle = Number(e.target.value);
+    renderAll();
+  });
+
+  document.getElementById("btn-random").addEventListener("click", () => {
+    const baseHue = Math.floor(Math.random() * 360);
+    stops = [
+      { color: hslToHex(baseHue, 82, 55), pos: 0 },
+      { color: hslToHex((baseHue + 45) % 360, 85, 58), pos: 50 },
+      { color: hslToHex((baseHue + 110) % 360, 76, 52), pos: 100 }
+    ];
+    angle = Math.floor(Math.random() * 360);
+    angleRange.value = angle;
+    renderStops();
+    renderAll();
+  });
+
+  document.getElementById("btn-reverse").addEventListener("click", () => {
+    stops = stops.map((s) => ({ ...s, pos: 100 - s.pos })).reverse();
+    renderStops();
+    renderAll();
+  });
+
+  document.getElementById("btn-toggle-fg").addEventListener("click", () => {
+    lightText = !lightText;
+    renderAll();
+  });
+
+  document.querySelectorAll(".code-tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      codeFmt = btn.dataset.fmt;
+      document.querySelectorAll(".code-tab-btn").forEach((b) => b.classList.toggle("active", b === btn));
+      renderAll();
+    });
+  });
+
+  async function copyCode() {
+    try {
+      await navigator.clipboard.writeText(formattedCode());
+      showToast(I18N[lang].copied);
+    } catch {}
+  }
+  document.getElementById("btn-copy-css").addEventListener("click", copyCode);
+  document.getElementById("btn-copy-panel").addEventListener("click", copyCode);
+
+  function buildSvgGradient() {
+    const sorted = [...stops].sort((a, b) => a.pos - b.pos);
+    const stopTags = sorted.map((s) => `<stop offset="${s.pos}%" stop-color="${s.color}"/>`).join("");
+    const rad = (angle - 90) * Math.PI / 180;
+    const x1 = (50 - Math.cos(rad) * 50).toFixed(1);
+    const y1 = (50 - Math.sin(rad) * 50).toFixed(1);
+    const x2 = (50 + Math.cos(rad) * 50).toFixed(1);
+    const y2 = (50 + Math.sin(rad) * 50).toFixed(1);
+    const def = type === "radial"
+      ? `<radialGradient id="g" cx="50%" cy="50%" r="70%">${stopTags}</radialGradient>`
+      : `<linearGradient id="g" x1="${x1}%" y1="${y1}%" x2="${x2}%" y2="${y2}%">${stopTags}</linearGradient>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630"><defs>${def}</defs><rect width="1200" height="630" fill="url(#g)"/></svg>`;
+  }
+
+  document.getElementById("btn-svg").addEventListener("click", () => {
+    const blob = new Blob([buildSvgGradient()], { type: "image/svg+xml;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "onehtml-gradient.svg";
+    a.click();
+  });
+
+  document.getElementById("btn-png").addEventListener("click", () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1200;
+    canvas.height = 630;
+    const ctx = canvas.getContext("2d");
+    const sorted = [...stops].sort((a, b) => a.pos - b.pos);
+    let grad;
+    if (type === "radial") {
+      grad = ctx.createRadialGradient(600, 315, 10, 600, 315, 650);
+    } else {
+      const rad = (angle - 90) * Math.PI / 180;
+      grad = ctx.createLinearGradient(
+        600 - Math.cos(rad) * 600, 315 - Math.sin(rad) * 315,
+        600 + Math.cos(rad) * 600, 315 + Math.sin(rad) * 315
+      );
+    }
+    sorted.forEach((s) => grad.addColorStop(s.pos / 100, s.color));
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 1200, 630);
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "onehtml-gradient.png";
+      a.click();
+    }, "image/png");
+  });
+
+  const presetsGrid = document.getElementById("presets-grid");
+  presetsGrid.innerHTML = PRESETS.map((p, idx) => {
+    const bg = `linear-gradient(${p.angle}deg, ${p.stops.map((s) => `${s.color} ${s.pos}%`).join(",")})`;
+    return `<button class="preset-dot" data-preset="${idx}" style="background:${bg};" aria-label="Preset ${idx + 1}"></button>`;
+  }).join("");
+  presetsGrid.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-preset]");
+    if (!btn) return;
+    const p = PRESETS[Number(btn.dataset.preset)];
+    stops = JSON.parse(JSON.stringify(p.stops));
+    angle = p.angle;
+    angleRange.value = angle;
+    renderStops();
+    renderAll();
+  });
+
+  document.getElementById("btn-lang").addEventListener("click", () => {
+    lang = lang === "en" ? "zh" : "en";
+    const dict = I18N[lang];
+    document.querySelectorAll("[data-i18n]").forEach((el) => {
+      const k = el.getAttribute("data-i18n");
+      if (dict[k]) el.textContent = dict[k];
+    });
+    document.getElementById("sample-title").textContent = dict.sampleTitle;
+    document.getElementById("sample-desc").textContent = dict.sampleDesc;
+    document.getElementById("btn-lang").textContent = dict.langBtn;
+    renderWcag();
+  });
+
+  renderStops();
+  renderAll();
+})();
+</script>
+</body>
+</html>

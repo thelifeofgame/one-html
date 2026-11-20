@@ -127,7 +127,7 @@ test("server runtime preserves public origins, host isolation and secure session
     });
   }
   const catalog = await (await request("/api/works")).json();
-  assert.equal(catalog.works.length, 12);
+  assert.equal(catalog.works.length, 15);
   assert.equal(catalog.sandbox_origin, sandbox);
   assert.equal((await request("/", { host: "untrusted.test" })).status, 403);
   assert.equal((await request("//untrusted.test/api/me")).status, 400);

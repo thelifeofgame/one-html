@@ -261,3 +261,96 @@ test("User-submitted work dynamically gets 3~5 sentence description, tech tags, 
   assert.ok(details.sentences.length >= 3 && details.sentences.length <= 5, "Dynamic sentences count must be between 3 and 5");
   assert.match(html, /<div class=["']work-description-full["']>/);
 });
+
+test("/preview serves independent SSR TDK, canonical, WebApplication JSON-LD, and noscript guidance", async (t) => {
+  const f = await fixture(t);
+  const res = await f.request("/preview");
+  assert.equal(res.status, 200);
+  const html = await res.text();
+
+  assert.match(
+    html,
+    /<title>Online HTML Preview &amp; AI Artifact Sandbox Runner — OneHTML<\/title>/i,
+  );
+  assert.match(html, /Claude Artifacts/i);
+  assert.match(
+    html,
+    new RegExp(`<link\\s+rel=["']canonical["']\\s+href=["']${origin}/preview["']\\s*\\/?>`),
+  );
+  assert.match(
+    html,
+    new RegExp(`<meta\\s+property=["']og:url["']\\s+content=["']${origin}/preview["']`),
+  );
+  assert.match(
+    html,
+    new RegExp(`<meta\\s+property=["']og:image["']\\s+content=["']${origin}/covers/default-og\\.png["']`),
+  );
+  assert.match(html, /"@type":"WebApplication"/);
+  assert.match(html, /<noscript>[\s\S]*OneHTML Online HTML5/i);
+});
+
+test("/sitemap.xml includes /preview and all 3 curated tool works", async (t) => {
+  const f = await fixture(t);
+  const res = await f.request("/sitemap.xml");
+  assert.equal(res.status, 200);
+  const xml = await res.text();
+
+  assert.match(xml, new RegExp(`<loc>${origin}/preview</loc>`));
+  for (const id of ["markflow-mindmap", "json-regex-lab", "css-gradient-studio"]) {
+    assert.match(xml, new RegExp(`<loc>${origin}/work/${id}</loc>`));
+  }
+});
+
+test("Work without custom cover falls back to default-og.png and work detail includes Open in Preview link", async (t) => {
+  const f = await fixture(t);
+
+  const userId = "user-" + crypto.randomUUID();
+  const workId = "custom-no-cover-" + crypto.randomUUID().slice(0, 8);
+  const versionId = "ver-" + crypto.randomUUID();
+  const now = Date.now();
+
+  await f.store.DB.prepare(
+    "INSERT INTO users (id, handle, display_name, password_hash, password_salt, role, created_at) VALUES (?, ?, ?, ?, ?, 'member', ?)",
+  )
+    .bind(userId, "maker_one", "Maker One", "dummy", "dummy", now)
+    .run();
+
+  await f.store.DB.prepare(
+    `INSERT INTO works (id, title, description, category, author_id, credit, source_url, license, status, object_key, current_version_id, sha256, cover, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'published', ?, ?, ?, 'custom', ?)`,
+  )
+    .bind(
+      workId,
+      "Gravity Toy",
+      "An interactive orbital gravity particle toy in a single HTML file.",
+      "visual",
+      userId,
+      "Maker One",
+      "",
+      "MIT",
+      "archive/" + workId + "/code.html",
+      versionId,
+      "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      now,
+    )
+    .run();
+
+  const customRes = await f.request(`/work/${workId}`);
+  assert.equal(customRes.status, 200);
+  const customHtml = await customRes.text();
+  assert.match(
+    customHtml,
+    new RegExp(`<meta\\s+property=["']og:image["']\\s+content=["']${origin}/covers/default-og\\.png["']`),
+  );
+  assert.doesNotMatch(customHtml, /og:image["']\s+content=["'][^"']*favicon\.svg/);
+  assert.match(customHtml, new RegExp(`href="${origin}/preview\\?work=${workId}"`));
+
+  for (const toolId of ["markflow-mindmap", "json-regex-lab", "css-gradient-studio"]) {
+    const toolRes = await f.request(`/work/${toolId}`);
+    assert.equal(toolRes.status, 200);
+    const toolHtml = await toolRes.text();
+    assert.match(toolHtml, /#WebTool/);
+    assert.match(toolHtml, /#Productivity/);
+    assert.match(toolHtml, new RegExp(`href="${origin}/preview\\?work=${toolId}"`));
+  }
+});

@@ -1,0 +1,90 @@
+{
+  "date": "2026-11-20",
+  "theme": "Eliminate zero inventory in tool category with zero-dependency single-file developer & creator utilities",
+  "tools": [
+    {
+      "id": "markflow-mindmap",
+      "title": "MarkFlow Mindmap",
+      "title_zh": "MarkFlow · 思维导图生成器",
+      "description": "Write an indented Markdown outline on the left and watch a responsive interactive SVG mindmap render in real time. Supports collapse, zoom/pan, themes and SVG/PNG export with zero external dependencies.",
+      "description_zh": "左侧编辑 Markdown 缩进大纲，右侧实时渲染高颜值交互式 SVG 思维导图。支持节点折叠展开、画布缩放平移、多套主题切换以及一键导出 SVG/PNG，纯单文件零外部依赖。",
+      "category": "tool",
+      "credit": "OneHTML Lab",
+      "source_url": "https://github.com/thelifeofgame/one-html",
+      "cover": "/covers/markflow-mindmap.png",
+      "versions": [
+        {
+          "file": "markflow-mindmap.original.html",
+          "sha256": "c1fb1b55a0c6519c7cf427607527ab79d21ad07dd4cf070950acfdc987353ce1",
+          "source_note": "Zero-dependency single-file HTML5 utility built for OneHTML Tools collection."
+        }
+      ],
+      "seo_metadata": {
+        "tags": ["#WebTool", "#Productivity", "#SVG", "#Markdown", "#Mindmap", "#SingleFileHTML"],
+        "sentences": [
+          "MarkFlow Mindmap is a zero-dependency single-file HTML5 utility that transforms indented Markdown outlines into interactive vector mindmaps in real time.",
+          "Engineered for writers, developers, and AI workflow designers, it computes balanced hierarchical tree layouts and smooth cubic Bezier curves directly in inline SVG.",
+          "Users can collapse or expand subtrees, filter nodes via instant search, pan and zoom smoothly across the canvas, and switch between four editorial and dark themes.",
+          "Exporting presentation-ready diagrams takes a single click with built-in client-side SVG and high-DPI PNG download pipelines.",
+          "Running securely inside OneHTML's isolated zero-trust sandbox, it guarantees complete offline privacy with zero network requests or third-party scripts."
+        ]
+      }
+    },
+    {
+      "id": "json-regex-lab",
+      "title": "JSON & Regex Lab",
+      "title_zh": "JSON & 正则便携调试台",
+      "description": "A dual-mode portable developer workbench in one HTML file. Format, minify, validate and browse JSON trees with click-to-copy JSONPath, or test regular expressions with live capture group tables.",
+      "description_zh": "专为开发者打造的双模式单文件便携调试台：支持 JSON 格式化/压缩/报错行列定位与树形 JSONPath 一键复制；支持正则表达式实时高亮匹配、捕获组拆解、替换预览与常用速查模板。",
+      "category": "tool",
+      "credit": "OneHTML Lab",
+      "source_url": "https://github.com/thelifeofgame/one-html",
+      "cover": "/covers/json-regex-lab.png",
+      "versions": [
+        {
+          "file": "json-regex-lab.original.html",
+          "sha256": "693f74d4ed55c096ff6b2c5099fbb76676ae3fe4abb73886dd0c70b62176f498",
+          "source_note": "Zero-dependency single-file HTML5 utility built for OneHTML Tools collection."
+        }
+      ],
+      "seo_metadata": {
+        "tags": ["#WebTool", "#Productivity", "#JSON", "#Regex", "#DevTools", "#SingleFileHTML"],
+        "sentences": [
+          "JSON & Regex Lab is a lightweight single-file developer workbench combining an interactive JSON inspector and a real-time regular expression tester.",
+          "In JSON mode, developers can format, minify, sort keys, unescape stringified payloads, pinpoint line-and-column syntax errors, and copy exact JSONPath expressions from a collapsible tree view.",
+          "Switching to Regex mode unlocks live match highlighting, toggleable JavaScript flags, capture group breakdown tables, replacement previews, and a built-in pattern cookbook.",
+          "Because every operation runs locally in the browser inside one standalone HTML document, sensitive payloads and API logs never leave your machine.",
+          "Launch it instantly inside OneHTML's isolated sandbox with zero installations, telemetry, or external network permissions."
+        ]
+      }
+    },
+    {
+      "id": "css-gradient-studio",
+      "title": "CSS Gradient Studio",
+      "title_zh": "CSS 渐变与调色板生成器",
+      "description": "Design multi-stop linear, radial and conic CSS gradients with live WCAG AA/AAA text contrast auditing, curated presets, CSS custom properties output, and instant SVG/PNG export.",
+      "description_zh": "实时调校线性、径向与角向多色标 CSS 渐变，内置文字 WCAG AA/AAA 无障碍对比度检测、精选配色预设，支持一键复制 CSS 变量、Tailwind 类名以及导出高分辨率 SVG/PNG 背景图。",
+      "category": "tool",
+      "credit": "OneHTML Lab",
+      "source_url": "https://github.com/thelifeofgame/one-html",
+      "cover": "/covers/css-gradient-studio.png",
+      "versions": [
+        {
+          "file": "css-gradient-studio.original.html",
+          "sha256": "1ee363847c092013c7ed27c036052f7e3d190df696d342d1f25e5ad163a874b4",
+          "source_note": "Zero-dependency single-file HTML5 utility built for OneHTML Tools collection."
+        }
+      ],
+      "seo_metadata": {
+        "tags": ["#WebTool", "#Productivity", "#CSS", "#DesignTools", "#WCAG", "#SingleFileHTML"],
+        "sentences": [
+          "CSS Gradient Studio is a self-contained single-file design tool for crafting multi-stop linear, radial, and conic CSS gradients in the browser.",
+          "Alongside interactive color-stop sliders, angle controls, and curated palette presets, it computes real-time WCAG 2.1 AA and AAA contrast ratios for light and dark foreground typography.",
+          "Designers and frontend engineers can copy clean CSS background rules, structured :root custom properties, or Tailwind utility classes in a single click.",
+          "The built-in rasterizer also exports ready-to-use 1200x630 PNG and vector SVG assets without relying on cloud servers or external libraries.",
+          "Run and remix it instantaneously inside OneHTML's isolated sandbox environment with bilingual English and Chinese controls."
+        ]
+      }
+    }
+  ]
+}

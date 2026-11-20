@@ -219,18 +219,52 @@ export function formatByteSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
+const DRAFT_STORAGE_KEY = "onehtml.playground.draft";
+
+export function savePlaygroundDraft(code) {
+  try {
+    const trimmed = (code || "").trim();
+    const isDefault = !trimmed || Object.values(PLAYGROUND_TEMPLATES).some((tpl) => tpl.trim() === trimmed);
+    if (isDefault) localStorage.removeItem(DRAFT_STORAGE_KEY);
+    else localStorage.setItem(DRAFT_STORAGE_KEY, code);
+  } catch {}
+}
+
+export function readPlaygroundDraft() {
+  try {
+    return localStorage.getItem(DRAFT_STORAGE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+export function isUnsavedCustomDraft(state, incomingHtml = "") {
+  const saved = readPlaygroundDraft();
+  const candidate = (saved || state.playground?.code || "").trim();
+  if (!candidate) return false;
+  if (Object.values(PLAYGROUND_TEMPLATES).some((tpl) => tpl.trim() === candidate)) return false;
+  if (state.playground?.loadedWorkHtml && state.playground.loadedWorkHtml.trim() === candidate) return false;
+  if (incomingHtml && incomingHtml.trim() === candidate) return false;
+  return Boolean(saved) || Boolean(state.playground?.dirtyDraft);
+}
+
 export function initPlaygroundState(state) {
+  const savedDraft = readPlaygroundDraft();
   if (!state.playground) {
     state.playground = {
-      code: PLAYGROUND_TEMPLATES.particles,
+      code: savedDraft || PLAYGROUND_TEMPLATES.particles,
       autoRun: true,
       device: "desktop",
       status: "ready",
       statusText: "",
       errorMsg: "",
+      activeWork: null,
+      loadedWorkHtml: "",
+      dirtyDraft: Boolean(savedDraft),
     };
   } else if (!state.playground.code) {
-    state.playground.code = PLAYGROUND_TEMPLATES.particles;
+    state.playground.code = savedDraft || PLAYGROUND_TEMPLATES.particles;
+    if (savedDraft) state.playground.dirtyDraft = true;
   }
 }
 
@@ -255,6 +289,8 @@ export function createPlaygroundUI({ state, t, icon, toast, openUpload }) {
         <span class="pill-tag">${icon("game")}${t("Zero-install 60FPS", "零安装极速运行")}</span>
       </div>
     </div>
+    <div id="pg-work-banner" class="pg-work-banner" hidden></div>
+    <div id="pg-draft-confirm" class="pg-draft-confirm" hidden></div>
 
     <div class="playground-layout">
       <!-- Left Pane: Editor -->
@@ -338,7 +374,78 @@ export function createPlaygroundUI({ state, t, icon, toast, openUpload }) {
   `;
 
   bindPlaygroundEvents({ state, t, icon, toast, openUpload });
+  renderWorkBanner({ state, t, icon });
   executeRender({ state, t });
+}
+
+export function renderWorkBanner({ state, t, icon }) {
+  const banner = document.getElementById("pg-work-banner");
+  if (!banner) return;
+  const w = state.playground?.activeWork;
+  if (!w) {
+    banner.hidden = true;
+    banner.innerHTML = "";
+    return;
+  }
+  banner.hidden = false;
+  banner.innerHTML = `<div class="pg-work-banner-copy">${icon("code")}<span>${t("Debugging work:", "正在调试作品：")} <strong>${escapeHtml(w.title)}</strong></span></div><a class="playground-icon-btn" href="/work/${encodeURIComponent(w.id)}">${t("Back to work page", "返回作品详情页")}</a>`;
+}
+
+export async function loadWorkIntoPlayground({ workId, workObj, state, t, icon, toast }) {
+  if (!workId) return;
+  initPlaygroundState(state);
+  try {
+    setStatus("rendering", t("Loading work source…", "正在加载作品源码…"));
+    const versionsRes = await fetch(`/api/works/${encodeURIComponent(workId)}/versions`);
+    if (!versionsRes.ok) throw new Error(t("Could not load work versions.", "无法加载作品版本。"));
+    const versionsData = await versionsRes.json();
+    const targetVersionId =
+      versionsData.current_version_id ||
+      versionsData.versions?.find((v) => v.status === "published")?.id ||
+      versionsData.versions?.[0]?.id;
+    if (!targetVersionId) throw new Error(t("No archived source found for this work.", "该作品暂无可用源码存档。"));
+    const srcRes = await fetch(`/api/works/${encodeURIComponent(workId)}/versions/${encodeURIComponent(targetVersionId)}/source`);
+    if (!srcRes.ok) throw new Error(t("Could not load work source.", "无法读取作品源码。"));
+    const srcData = await srcRes.json();
+    const html = srcData.html || "";
+    const displayTitle = (state.lang === "zh" && workObj?.title_zh) ? workObj.title_zh : (workObj?.title || versionsData.title || workId);
+
+    const applyWorkSource = () => {
+      state.playground.code = html;
+      state.playground.loadedWorkHtml = html;
+      state.playground.dirtyDraft = false;
+      state.playground.activeWork = { id: workId, title: displayTitle };
+      savePlaygroundDraft("");
+      const textarea = document.getElementById("playground-textarea");
+      if (textarea) textarea.value = html;
+      updateSizeBadge(html);
+      renderWorkBanner({ state, t, icon });
+      const confirmBar = document.getElementById("pg-draft-confirm");
+      if (confirmBar) { confirmBar.hidden = true; confirmBar.innerHTML = ""; }
+      executeRender({ state, t });
+      toast?.(t(`Loaded ${displayTitle} into sandbox.`, `已载入「${displayTitle}」到预览沙箱。`));
+    };
+
+    if (isUnsavedCustomDraft(state, html)) {
+      const confirmBar = document.getElementById("pg-draft-confirm");
+      if (confirmBar) {
+        confirmBar.hidden = false;
+        confirmBar.innerHTML = `<span>${t(`You have an unsaved local draft. Replace it with "${displayTitle}"?`, `检测到本地有未保存的自写草稿，是否用「${displayTitle}」覆盖当前代码？`)}</span><div class="pg-draft-actions"><button type="button" class="button button-primary" id="pg-confirm-overwrite">${t("Load & Replace Draft", "确认载入并覆盖")}</button><button type="button" class="button button-outline" id="pg-confirm-keep">${t("Keep My Draft", "保留我的草稿")}</button></div>`;
+        document.getElementById("pg-confirm-overwrite")?.addEventListener("click", applyWorkSource);
+        document.getElementById("pg-confirm-keep")?.addEventListener("click", () => {
+          confirmBar.hidden = true;
+          confirmBar.innerHTML = "";
+          setStatus("ready", t("Kept local draft", "已保留本地草稿"));
+        });
+        setStatus("ready", t("Draft confirmation needed", "等待确认是否覆盖草稿"));
+        return;
+      }
+    }
+    applyWorkSource();
+  } catch (err) {
+    setStatus("error", err.message || t("Failed to load work", "加载失败"));
+    toast?.(err.message || t("Could not load work into preview.", "加载作品源码失败。"));
+  }
 }
 
 function escapeHtml(str) {
@@ -507,6 +614,10 @@ function bindPlaygroundEvents({ state, t, icon, toast, openUpload }) {
     }
     const text = await file.text();
     state.playground.code = text;
+    state.playground.dirtyDraft = true;
+    state.playground.activeWork = null;
+    savePlaygroundDraft(text);
+    renderWorkBanner({ state, t, icon });
     textarea.value = text;
     updateSizeBadge(text);
     executeRender({ state, t });
@@ -548,6 +659,8 @@ function bindPlaygroundEvents({ state, t, icon, toast, openUpload }) {
 
   function triggerInput() {
     state.playground.code = textarea.value;
+    state.playground.dirtyDraft = true;
+    savePlaygroundDraft(state.playground.code);
     updateSizeBadge(state.playground.code);
 
     if (state.playground.autoRun) {
@@ -576,6 +689,10 @@ function bindPlaygroundEvents({ state, t, icon, toast, openUpload }) {
     if (!key) return;
     if (PLAYGROUND_TEMPLATES[key] !== undefined) {
       state.playground.code = PLAYGROUND_TEMPLATES[key];
+      state.playground.dirtyDraft = false;
+      state.playground.activeWork = null;
+      savePlaygroundDraft("");
+      renderWorkBanner({ state, t, icon });
       textarea.value = state.playground.code;
       updateSizeBadge(state.playground.code);
       executeRender({ state, t });
@@ -597,6 +714,10 @@ function bindPlaygroundEvents({ state, t, icon, toast, openUpload }) {
 
   btnClear?.addEventListener("click", () => {
     state.playground.code = "";
+    state.playground.dirtyDraft = false;
+    state.playground.activeWork = null;
+    savePlaygroundDraft("");
+    renderWorkBanner({ state, t, icon });
     textarea.value = "";
     updateSizeBadge("");
     executeRender({ state, t });

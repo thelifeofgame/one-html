@@ -261,5 +261,56 @@
         "source_note": "Optimized single-file falling sand engine with multiple element brushes."
       }
     ]
+  },
+  {
+    "id": "markflow-mindmap",
+    "title": "MarkFlow Mindmap",
+    "title_zh": "MarkFlow · 思维导图生成器",
+    "description": "Write an indented Markdown outline on the left and watch a responsive interactive SVG mindmap render in real time. Supports collapse, zoom/pan, themes and SVG/PNG export with zero external dependencies.",
+    "description_zh": "左侧编辑 Markdown 缩进大纲，右侧实时渲染高颜值交互式 SVG 思维导图。支持节点折叠展开、画布缩放平移、多套主题切换以及一键导出 SVG/PNG，纯单文件零外部依赖。",
+    "category": "tool",
+    "credit": "OneHTML Lab",
+    "source_url": "https://github.com/thelifeofgame/one-html",
+    "versions": [
+      {
+        "file": "markflow-mindmap.original.html",
+        "sha256": "c1fb1b55a0c6519c7cf427607527ab79d21ad07dd4cf070950acfdc987353ce1",
+        "source_note": "Zero-dependency single-file HTML5 utility built for OneHTML Tools collection."
+      }
+    ]
+  },
+  {
+    "id": "json-regex-lab",
+    "title": "JSON & Regex Lab",
+    "title_zh": "JSON & 正则便携调试台",
+    "description": "A dual-mode portable developer workbench in one HTML file. Format, minify, validate and browse JSON trees with click-to-copy JSONPath, or test regular expressions with live capture group tables.",
+    "description_zh": "专为开发者打造的双模式单文件便携调试台：支持 JSON 格式化/压缩/报错行列定位与树形 JSONPath 一键复制；支持正则表达式实时高亮匹配、捕获组拆解、替换预览与常用速查模板。",
+    "category": "tool",
+    "credit": "OneHTML Lab",
+    "source_url": "https://github.com/thelifeofgame/one-html",
+    "versions": [
+      {
+        "file": "json-regex-lab.original.html",
+        "sha256": "693f74d4ed55c096ff6b2c5099fbb76676ae3fe4abb73886dd0c70b62176f498",
+        "source_note": "Zero-dependency single-file HTML5 utility built for OneHTML Tools collection."
+      }
+    ]
+  },
+  {
+    "id": "css-gradient-studio",
+    "title": "CSS Gradient Studio",
+    "title_zh": "CSS 渐变与调色板生成器",
+    "description": "Design multi-stop linear, radial and conic CSS gradients with live WCAG AA/AAA text contrast auditing, curated presets, CSS custom properties output, and instant SVG/PNG export.",
+    "description_zh": "实时调校线性、径向与角向多色标 CSS 渐变，内置文字 WCAG AA/AAA 无障碍对比度检测、精选配色预设，支持一键复制 CSS 变量、Tailwind 类名以及导出高分辨率 SVG/PNG 背景图。",
+    "category": "tool",
+    "credit": "OneHTML Lab",
+    "source_url": "https://github.com/thelifeofgame/one-html",
+    "versions": [
+      {
+        "file": "css-gradient-studio.original.html",
+        "sha256": "1ee363847c092013c7ed27c036052f7e3d190df696d342d1f25e5ad163a874b4",
+        "source_note": "Zero-dependency single-file HTML5 utility built for OneHTML Tools collection."
+      }
+    ]
   }
 ]

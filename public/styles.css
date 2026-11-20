@@ -1646,3 +1646,50 @@ h2 {
   align-items: center;
   gap: 3px;
 }
+
+/* Playground Work Debugging Banner & Draft Protection */
+.pg-work-banner, .pg-draft-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  border-radius: 10px;
+  margin-bottom: 14px;
+  font-size: 13px;
+}
+.pg-work-banner[hidden], .pg-draft-confirm[hidden] {
+  display: none;
+}
+.pg-work-banner {
+  background: #ffffff;
+  border: 1px solid var(--line);
+}
+.pg-work-banner-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+}
+.pg-work-banner-copy svg {
+  width: 15px;
+  height: 15px;
+  color: var(--orange);
+}
+.pg-draft-confirm {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+}
+.pg-draft-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.pg-draft-actions .button {
+  min-height: 32px;
+  padding: 6px 12px;
+  font-size: 12px;
+}

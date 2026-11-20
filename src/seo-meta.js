@@ -119,6 +119,36 @@ export const CURATED_WORK_METADATA = {
       "Experience hypnotic synchronized visual music within OneHTML's safe, isolated sandbox.",
     ],
   },
+  "markflow-mindmap": {
+    tags: ["#WebTool","#Productivity","#SVG","#Markdown","#Mindmap","#SingleFileHTML"],
+    sentences: [
+      "MarkFlow Mindmap is a zero-dependency single-file HTML5 utility that transforms indented Markdown outlines into interactive vector mindmaps in real time.",
+      "Engineered for writers, developers, and AI workflow designers, it computes balanced hierarchical tree layouts and smooth cubic Bezier curves directly in inline SVG.",
+      "Users can collapse or expand subtrees, filter nodes via instant search, pan and zoom smoothly across the canvas, and switch between four editorial and dark themes.",
+      "Exporting presentation-ready diagrams takes a single click with built-in client-side SVG and high-DPI PNG download pipelines.",
+      "Running securely inside OneHTML's isolated zero-trust sandbox, it guarantees complete offline privacy with zero network requests or third-party scripts.",
+    ],
+  },
+  "json-regex-lab": {
+    tags: ["#WebTool","#Productivity","#JSON","#Regex","#DevTools","#SingleFileHTML"],
+    sentences: [
+      "JSON & Regex Lab is a lightweight single-file developer workbench combining an interactive JSON inspector and a real-time regular expression tester.",
+      "In JSON mode, developers can format, minify, sort keys, unescape stringified payloads, pinpoint line-and-column syntax errors, and copy exact JSONPath expressions from a collapsible tree view.",
+      "Switching to Regex mode unlocks live match highlighting, toggleable JavaScript flags, capture group breakdown tables, replacement previews, and a built-in pattern cookbook.",
+      "Because every operation runs locally in the browser inside one standalone HTML document, sensitive payloads and API logs never leave your machine.",
+      "Launch it instantly inside OneHTML's isolated sandbox with zero installations, telemetry, or external network permissions.",
+    ],
+  },
+  "css-gradient-studio": {
+    tags: ["#WebTool","#Productivity","#CSS","#DesignTools","#WCAG","#SingleFileHTML"],
+    sentences: [
+      "CSS Gradient Studio is a self-contained single-file design tool for crafting multi-stop linear, radial, and conic CSS gradients in the browser.",
+      "Alongside interactive color-stop sliders, angle controls, and curated palette presets, it computes real-time WCAG 2.1 AA and AAA contrast ratios for light and dark foreground typography.",
+      "Designers and frontend engineers can copy clean CSS background rules, structured :root custom properties, or Tailwind utility classes in a single click.",
+      "The built-in rasterizer also exports ready-to-use 1200x630 PNG and vector SVG assets without relying on cloud servers or external libraries.",
+      "Run and remix it instantaneously inside OneHTML's isolated sandbox environment with bilingual English and Chinese controls.",
+    ],
+  },
 };
 
 export function getWorkEnrichedDetails(work) {
