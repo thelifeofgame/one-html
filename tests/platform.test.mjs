@@ -125,9 +125,9 @@ test("curated imports publish real archives, preserve versions, and retain membe
   const submitted = await (await f.submit(user)).json();
   await approve(f, user, submitted.id, submitted.version_id);
   const result = await importCollection(f.store, { replaceDemos: true });
-  assert.deepEqual(result, { works: 15, versions: 23 });
+  assert.deepEqual(result, { works: 19, versions: 27 });
   let catalog = await (await f.request("/api/works")).json();
-  assert.equal(catalog.works.length, 16);
+  assert.equal(catalog.works.length, 20);
   assert.ok(catalog.works.some((work) => work.id === submitted.id));
   assert.ok(!catalog.works.some((work) => work.id === "tiny-sail"));
   assert.equal(
@@ -186,6 +186,131 @@ test("curated imports reject altered source files before publishing any entries"
     ).first(),
     null,
   );
+});
+
+test("importCollection preserve_author updates curated metadata while retaining original author_id and credit, and rejects without preserve_author", async (t) => {
+  const f = await fixture(t);
+  const creator = await f.account("community_maker");
+  const { hash } = await import("../src/security.js");
+
+  // Insert an existing community submission with a known work ID and author_id
+  const workId = "community-work-123";
+  const digest = await hash(validHtml);
+  await f.store.DB.prepare(
+    `INSERT INTO works (id, title, description, category, author_id, credit, source_url, license, status, object_key, cover, created_at)
+     VALUES (?, 'Original Community Title', 'Original description text.', 'game', ?, 'Test creator', '', '', 'published', 'versions/community/v1.html', 'custom', ?)`,
+  )
+    .bind(workId, creator.id, Date.now())
+    .run();
+
+  const colDir = join(f.directory, "preserve-collection");
+  await mkdir(join(colDir, "sources"), { recursive: true });
+  await writeFile(join(colDir, "sources", "community.html"), validHtml);
+
+  // 1. Without preserve_author: must throw "Collection ID belongs to another creator"
+  await writeFile(
+    join(colDir, "catalog.json"),
+    JSON.stringify([
+      {
+        id: workId,
+        title: "Curated Bilingual Title",
+        title_zh: "策展双语标题",
+        description: "Curated English description for the community creation.",
+        description_zh: "策展中文作品描述。",
+        category: "visual",
+        credit: "Test creator",
+        source_url: "https://example.test/community",
+        license: "MIT",
+        versions: [{ file: "community.html", sha256: digest }],
+      },
+    ]),
+  );
+  await assert.rejects(
+    importCollection(f.store, { directory: colDir }),
+    /Collection ID belongs to another creator/,
+  );
+
+  // 2. With preserve_author: true and mismatched credit: must still throw
+  await writeFile(
+    join(colDir, "catalog.json"),
+    JSON.stringify([
+      {
+        id: workId,
+        preserve_author: true,
+        title: "Curated Bilingual Title",
+        category: "visual",
+        credit: "Wrong Creator Name",
+        versions: [{ file: "community.html", sha256: digest }],
+      },
+    ]),
+  );
+  await assert.rejects(
+    importCollection(f.store, { directory: colDir }),
+    /Collection ID belongs to another creator/,
+  );
+
+  // 3. With preserve_author: true and matching credit: succeeds, preserves author_id & credit, updates metadata & custom cover
+  await writeFile(
+    join(colDir, "catalog.json"),
+    JSON.stringify([
+      {
+        id: workId,
+        preserve_author: true,
+        title: "Curated Bilingual Title",
+        title_zh: "策展双语标题",
+        description: "Curated English description for the community creation.",
+        description_zh: "策展中文作品描述。",
+        category: "visual",
+        credit: "Test creator",
+        cover: "custom",
+        source_url: "https://example.test/community",
+        license: "MIT",
+        versions: [{ file: "community.html", sha256: digest, license: "MIT", source_url: "https://example.test/community" }],
+      },
+    ]),
+  );
+
+  const importRes = await importCollection(f.store, { directory: colDir });
+  assert.deepEqual(importRes, { works: 1, versions: 1 });
+
+  const updated = await f.store.DB.prepare("SELECT * FROM works WHERE id=?")
+    .bind(workId)
+    .first();
+  assert.equal(updated.author_id, creator.id, "author_id must be preserved");
+  assert.equal(updated.credit, "Test creator", "credit must be preserved");
+  assert.equal(updated.title, "Curated Bilingual Title");
+  assert.equal(updated.title_zh, "策展双语标题");
+  assert.equal(updated.description_zh, "策展中文作品描述。");
+  assert.equal(updated.category, "visual");
+  assert.equal(updated.cover, "custom");
+  assert.equal(updated.license, "MIT");
+  assert.equal(updated.source_url, "https://example.test/community");
+
+  // 4. Also verify fresh database insert when preserve_author: true entry doesn't exist yet
+  const freshId = "fresh-preserved-entry";
+  await writeFile(
+    join(colDir, "catalog.json"),
+    JSON.stringify([
+      {
+        id: freshId,
+        preserve_author: true,
+        title: "Fresh Entry",
+        title_zh: "全新收录",
+        description: "Inserted cleanly into an empty database.",
+        description_zh: "在新数据库中正常插入。",
+        category: "game",
+        credit: "Test creator",
+        versions: [{ file: "community.html", sha256: digest }],
+      },
+    ]),
+  );
+  await importCollection(f.store, { directory: colDir });
+  const freshRow = await f.store.DB.prepare("SELECT * FROM works WHERE id=?")
+    .bind(freshId)
+    .first();
+  assert.ok(freshRow);
+  assert.equal(freshRow.title, "Fresh Entry");
+  assert.equal(freshRow.cover, `/covers/${freshId}.png`);
 });
 
 test("collection accepts optional license and provenance without a rights gate", async (t) => {
@@ -1095,4 +1220,15 @@ test("GET /api/submissions returns user's submissions and spotlight requests, an
   assert.match(appSource, /data-space-tab=/);
   assert.match(appSource, /"submissions"/);
   assert.match(appSource, /"sponsors"/);
+});
+
+test("frontend app.js implements canonical /work/:id history navigation, share link construction, related works cards, and category pathname parsing", async () => {
+  const appSource = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
+  assert.match(appSource, /parseCategoryFromPathname/);
+  assert.match(appSource, /"\/games":\s*"game"/);
+  assert.match(appSource, /"\/experiments":\s*"visual"/);
+  assert.match(appSource, /"\/tools":\s*"tool"/);
+  assert.match(appSource, /\$\{location\.origin\}\/work\/\$\{state\.work\.id\}/);
+  assert.doesNotMatch(appSource, /history\.replaceState\(null,\s*"",\s*`#work\/\$\{work\.id\}`\)/);
+  assert.match(appSource, /related-work-card/);
 });

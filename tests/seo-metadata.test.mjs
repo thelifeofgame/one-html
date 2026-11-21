@@ -151,12 +151,30 @@ test("Sandbox domain strictly enforces X-Robots-Tag: noindex, nofollow across al
   assert.ok(mainPlayHeader);
   assert.match(mainPlayHeader, /noindex/i);
   assert.match(mainPlayHeader, /nofollow/i);
+
+  // 6. Sandbox domain requests to /games, /experiments, /tools, /llms.txt must return 404 + X-Robots-Tag: noindex
+  for (const blockedPath of ["/games", "/experiments", "/tools", "/llms.txt"]) {
+    const blockedRes = await f.request(blockedPath, { sandbox: true });
+    assert.equal(blockedRes.status, 404, `Sandbox ${blockedPath} must return 404`);
+    const blockedRobots = blockedRes.headers.get("x-robots-tag");
+    assert.ok(blockedRobots, `Sandbox ${blockedPath} must include X-Robots-Tag`);
+    assert.match(blockedRobots, /noindex/i);
+    assert.match(blockedRobots, /nofollow/i);
+
+    // Also verify when DEMO_ONLY is not "true" but request origin matches SANDBOX_ORIGIN
+    const hostInterceptRes = await worker.fetch(
+      new Request(`${f.env.SANDBOX_ORIGIN}${blockedPath}`),
+      { ...f.env, DEMO_ONLY: "false" },
+    );
+    assert.equal(hostInterceptRes.status, 404);
+    assert.match(hostInterceptRes.headers.get("x-robots-tag") || "", /noindex/i);
+  }
 });
 
-test("Curated work page contains crawler-readable static text, 3~5 sentence descriptions, and tech tags", async (t) => {
+test("Curated work page contains crawler-readable static text, 3~5 sentence descriptions, tech tags, and visible same-category prioritized related works", async (t) => {
   const f = await fixture(t);
 
-  // Test Q1K3
+  // Test Q1K3 (game category)
   const res = await f.request("/work/q1k3");
   assert.equal(res.status, 200);
   const html = await res.text();
@@ -197,6 +215,26 @@ test("Curated work page contains crawler-readable static text, 3~5 sentence desc
   for (const sentence of details.sentences) {
     assert.ok(html.includes(sentence.replace(/'/g, "&#39;").replace(/"/g, "&quot;")), `HTML must contain sentence: ${sentence.slice(0, 30)}`);
   }
+
+  // Visible Related Creations section (NOT wrapped in <noscript>)
+  assert.doesNotMatch(html, /<div class="related-works-prerender">\s*<noscript>/);
+  assert.match(html, /<section class="related-works-section"/);
+  const relatedCardMatches = [...html.matchAll(/class="related-work-card"\s+href="https:\/\/onehtmlapp\.com\/work\/([a-z0-9-]+)"/g)];
+  assert.equal(relatedCardMatches.length, 6, "Must render up to 6 visible related work cards");
+  const relatedIds = relatedCardMatches.map((m) => m[1]);
+  assert.ok(!relatedIds.includes("q1k3"), "Related works must not include current work");
+
+  // Check same-category priority for a tool work (there are 5 tools in baseline 19 works, so first 4 related works for markflow-mindmap must be the other 4 tools)
+  const toolRes = await f.request("/work/markflow-mindmap");
+  assert.equal(toolRes.status, 200);
+  const toolHtml = await toolRes.text();
+  const toolRelatedIds = [...toolHtml.matchAll(/class="related-work-card"\s+href="https:\/\/onehtmlapp\.com\/work\/([a-z0-9-]+)"/g)].map((m) => m[1]);
+  assert.equal(toolRelatedIds.length, 6);
+  assert.deepEqual(
+    toolRelatedIds.slice(0, 4).sort(),
+    ["css-gradient-studio", "json-regex-lab", "svg-path-bezier-editor", "web-audio-synth-studio"],
+    "Same-category works must be prioritized first in related recommendations",
+  );
 });
 
 test("User-submitted work dynamically gets 3~5 sentence description, tech tags, and SEO tags", async (t) => {
@@ -289,16 +327,89 @@ test("/preview serves independent SSR TDK, canonical, WebApplication JSON-LD, an
   assert.match(html, /<noscript>[\s\S]*OneHTML Online HTML5/i);
 });
 
-test("/sitemap.xml includes /preview and all 3 curated tool works", async (t) => {
+test("/games, /experiments, and /tools serve SSR category landing pages with CollectionPage + ItemList JSON-LD and canonical tags", async (t) => {
+  const f = await fixture(t);
+
+  const cases = [
+    {
+      path: "/games",
+      category: "game",
+      expectedWork: "q1k3",
+      excludedWork: "markflow-mindmap",
+      titleKeyword: "Games",
+    },
+    {
+      path: "/experiments",
+      category: "visual",
+      expectedWork: "webgl-fluid",
+      excludedWork: "q1k3",
+      titleKeyword: "Experiments",
+    },
+    {
+      path: "/tools",
+      category: "tool",
+      expectedWork: "markflow-mindmap",
+      excludedWork: "q1k3",
+      titleKeyword: "Tools",
+    },
+  ];
+
+  for (const c of cases) {
+    const res = await f.request(c.path);
+    assert.equal(res.status, 200, `${c.path} must return 200`);
+    const html = await res.text();
+
+    assert.match(html, new RegExp(`<title>[^<]*${c.titleKeyword}[^<]*<\\/title>`, "i"));
+    assert.match(
+      html,
+      new RegExp(`<link\\s+rel=["']canonical["']\\s+href=["']${origin}${c.path}["']\\s*\\/?>`),
+    );
+    assert.match(
+      html,
+      new RegExp(`<meta\\s+property=["']og:url["']\\s+content=["']${origin}${c.path}["']`),
+    );
+    assert.match(html, /"@type":"CollectionPage"/);
+    assert.match(html, /"@type":"ItemList"/);
+    assert.match(html, new RegExp(`${origin}/work/${c.expectedWork}`));
+    assert.doesNotMatch(html, new RegExp(`${origin}/work/${c.excludedWork}`));
+    assert.match(html, /class="category-seo-intro container"/);
+  }
+});
+
+test("GET /llms.txt returns structured Markdown index with core entrances and all published works", async (t) => {
+  const f = await fixture(t);
+  const res = await f.request("/llms.txt");
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get("content-type") || "", /text\/plain;\s*charset=utf-8/i);
+
+  const text = await res.text();
+  assert.match(text, /^# OneHTML/m);
+  assert.match(text, new RegExp(`\\(${origin}/preview\\)`));
+  assert.match(text, new RegExp(`\\(${origin}/games\\)`));
+  assert.match(text, new RegExp(`\\(${origin}/experiments\\)`));
+  assert.match(text, new RegExp(`\\(${origin}/tools\\)`));
+
+  for (const id of ["q1k3", "saltline", "webgl-fluid", "london-railway", "markflow-mindmap", "json-regex-lab", "css-gradient-studio", "cellular-automata-sandbox", "web-audio-synth-studio", "svg-path-bezier-editor", "7ff64f93-a1a6-4f4c-9618-23763484e1f2"]) {
+    assert.match(text, new RegExp(`${origin}/work/${id}`));
+  }
+});
+
+test("/sitemap.xml includes /preview, /games, /experiments, /tools, and all curated works", async (t) => {
   const f = await fixture(t);
   const res = await f.request("/sitemap.xml");
   assert.equal(res.status, 200);
   const xml = await res.text();
 
   assert.match(xml, new RegExp(`<loc>${origin}/preview</loc>`));
-  for (const id of ["markflow-mindmap", "json-regex-lab", "css-gradient-studio"]) {
+  assert.match(xml, new RegExp(`<loc>${origin}/games</loc>\\s*<changefreq>daily</changefreq>\\s*<priority>0\\.9</priority>`));
+  assert.match(xml, new RegExp(`<loc>${origin}/experiments</loc>\\s*<changefreq>daily</changefreq>\\s*<priority>0\\.9</priority>`));
+  assert.match(xml, new RegExp(`<loc>${origin}/tools</loc>\\s*<changefreq>daily</changefreq>\\s*<priority>0\\.9</priority>`));
+
+  for (const id of ["markflow-mindmap", "json-regex-lab", "css-gradient-studio", "cellular-automata-sandbox", "web-audio-synth-studio", "svg-path-bezier-editor", "7ff64f93-a1a6-4f4c-9618-23763484e1f2"]) {
     assert.match(xml, new RegExp(`<loc>${origin}/work/${id}</loc>`));
   }
+  const locCount = (xml.match(/<loc>/g) || []).length;
+  assert.equal(locCount, 24, "Sitemap must contain 24 URLs (home + /preview + 3 categories + 19 works)");
 });
 
 test("Work without custom cover falls back to default-og.png and work detail includes Open in Preview link", async (t) => {

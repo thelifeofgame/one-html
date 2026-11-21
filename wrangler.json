@@ -15,7 +15,11 @@
       "/api/*",
       "/play/*",
       "/work/*",
-      "/sitemap.xml"
+      "/sitemap.xml",
+      "/games",
+      "/experiments",
+      "/tools",
+      "/llms.txt"
     ]
   },
   "d1_databases": [

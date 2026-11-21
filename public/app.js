@@ -41,13 +41,35 @@ const icons = {
 };
 const icon = (name) =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.visual}</svg>`;
+
+const PATH_TO_CATEGORY = {
+  "/games": "game",
+  "/experiments": "visual",
+  "/tools": "tool",
+};
+
+const CATEGORY_TO_PATH = {
+  all: "/",
+  game: "/games",
+  visual: "/experiments",
+  tool: "/tools",
+};
+
+function parseCategoryFromPathname(pathname = location.pathname) {
+  return PATH_TO_CATEGORY[pathname] || "all";
+}
+
+function getCategoryPath(category) {
+  return CATEGORY_TO_PATH[category] || "/";
+}
+
 const state = {
   lang:
     localStorage.getItem("onehtml.lang") ||
     (navigator.language.startsWith("zh") ? "zh" : "en"),
   works: [],
   user: null,
-  category: "all",
+  category: parseCategoryFromPathname(),
   search: "",
   view: location.pathname === "/preview" || location.hash === "#preview" ? "preview" : "discover",
   spaceTab: "favorites",
@@ -56,6 +78,7 @@ const state = {
   spaceLoadedUser: null,
   modal: null,
   work: null,
+  previousPath: null,
   adminTab: "works",
   sandboxOrigin: null,
   authProviders: { google: false },
@@ -109,7 +132,7 @@ async function requestFullscreen(stage) {
 }
 
 async function exitFullscreen(stage) {
-  if (!stage) stage = $("#player-stage");
+  if (!stage) stage = $("#modal-content #player-stage") || $("#player-stage");
   if (document.fullscreenElement) {
     try {
       await document.exitFullscreen();
@@ -122,12 +145,12 @@ async function exitFullscreen(stage) {
 }
 
 document.addEventListener("fullscreenchange", () => {
-  const stage = $("#player-stage");
+  const stage = $("#modal-content #player-stage") || $("#player-stage");
   if (stage) updateFullscreenExitButton(stage);
 });
 
 function releasePlayer() {
-  exitFullscreen($("#player-stage"));
+  exitFullscreen($("#modal-content #player-stage") || $("#player-stage"));
   const player = activePlayer;
   activePlayer = null;
   player?.destroy();
@@ -170,6 +193,42 @@ function field(label, input, help = "") {
 }
 const button = (text, action, className = "button-primary", glyph = "") =>
   `<button class="button ${className}" data-action="${action}">${glyph ? icon(glyph) : ""}${text}</button>`;
+
+function computeDocumentTitle() {
+  if (state.work) {
+    return `${title(state.work)} — OneHTML`;
+  }
+  if (state.view === "preview") {
+    return t(
+      "Online HTML Preview & AI Artifact Sandbox Runner — OneHTML",
+      "在线 HTML 预览与 AI 作品沙盒运行台 — OneHTML",
+    );
+  }
+  if (state.view === "discover") {
+    if (state.category === "game") {
+      return t(
+        "Single-File HTML5 Games & AI Browser Arcade — OneHTML",
+        "单文件 HTML5 小游戏与 AI 街机游乐场 — OneHTML",
+      );
+    }
+    if (state.category === "visual") {
+      return t(
+        "Interactive HTML5 Visual Experiments, WebGL Shaders & 3D Physics — OneHTML",
+        "HTML5 交互视觉实验、WebGL 着色器与 3D 物理模拟 — OneHTML",
+      );
+    }
+    if (state.category === "tool") {
+      return t(
+        "Zero-Dependency Single-File HTML5 Web Tools & Developer Utilities — OneHTML",
+        "零依赖单文件 HTML5 实用小工具与开发者套件 — OneHTML",
+      );
+    }
+  }
+  return t(
+    "OneHTML — Small files. Big possibilities.",
+    "OneHTML — 一个 HTML，一整个新世界",
+  );
+}
 
 async function api(path, options = {}) {
   const response = await fetch(`/api${path}`, {
@@ -257,14 +316,14 @@ async function load() {
     state.sponsorRequests = [];
     state.spaceLoadedUser = null;
   }
+  if (!location.pathname.startsWith("/work/")) {
+    state.category = parseCategoryFromPathname(location.pathname);
+  }
   render();
 }
 function render() {
   document.documentElement.lang = state.lang === "zh" ? "zh-CN" : "en";
-  document.title = t(
-    "OneHTML — Small files. Big possibilities.",
-    "OneHTML — 一个 HTML，一整个新世界",
-  );
+  document.title = computeDocumentTitle();
   $("#main-nav").innerHTML = [
     ["discover", t("Discover", "发现")],
     ["leaderboard", t("Leaderboard", "排行榜")],
@@ -282,8 +341,14 @@ function render() {
   $("#header-actions").innerHTML =
     `${visitStatsHtml}<button class="language-button" data-action="language" aria-label="${t("Switch to Chinese", "切换到英文")}">${icon("globe")}${t("中文", "EN")}</button>${state.user ? `<details class="profile"><summary><span class="avatar">${esc(state.user.display_name[0].toUpperCase())}</span>${esc(state.user.display_name)}</summary><div class="profile-menu"><button data-space-jump="favorites">${t("Saved works", "我的收藏")}</button><button data-space-jump="submissions">${t("My submissions", "我的投稿")}</button><button data-space-jump="sponsors">${t("Spotlight requests", "赞助申请")}</button>${state.user.role === "admin" ? `<button data-action="admin">${t("Review desk", "审核后台")}</button>` : ""}<button data-action="logout">${t("Sign out", "退出登录")}</button></div></details>` : `<button class="text-button" data-action="login">${t("Sign in", "登录")}</button>`}${button(t("Submit a creation", "投稿作品"), "upload", "button-dark", "plus")}`;
   const isPreview = state.view === "preview";
-  if ($("#hero")) $("#hero").hidden = state.view !== "discover";
-  if ($("#work-showcase")) $("#work-showcase").hidden = isPreview;
+  const onWorkDetailPage = Boolean(location.pathname.match(/^\/work\/[a-z0-9-]+$/));
+  const hasCategoryIntro = Boolean($("#category-seo-intro") && state.category !== "all" && state.view === "discover");
+  if ($("#hero")) $("#hero").hidden = state.view !== "discover" || onWorkDetailPage || hasCategoryIntro;
+  if ($("#work-showcase")) $("#work-showcase").hidden = isPreview || !onWorkDetailPage;
+  if ($("#category-seo-intro")) {
+    $("#category-seo-intro").hidden =
+      isPreview || state.view !== "discover" || state.category === "all";
+  }
   if ($("#collection")) $("#collection").hidden = isPreview;
   if ($("#closing-note")) $("#closing-note").hidden = isPreview;
   const pgSection = $("#preview-playground");
@@ -309,8 +374,14 @@ function render() {
       : state.spaceTab === "sponsors"
         ? state.sponsorRequests.length
         : savedCount;
+  const visibleWorksCount =
+    state.view === "saved"
+      ? spaceCount
+      : state.category === "all"
+        ? state.works.length
+        : state.works.filter((work) => work.category === state.category).length;
   $("#collection-heading").innerHTML =
-    `<div class="section-title"><h2 id="collection-title">${state.view === "saved" ? t("My space", "我的空间") : state.view === "leaderboard" ? t("Community favorites", "大家都喜欢") : t("The good stuff", "有趣的，都在这里")}</h2><span class="count-badge">${state.view === "saved" ? spaceCount : state.works.length}</span></div><span class="section-aside">${icon("leaf")}${state.view === "saved" ? t("Saved works, submissions & spotlight progress.", "收藏作品、投稿审核与赞助进度，一站查看。") : t("Small creations. A little joy.", "小小作品，大大乐趣。")}</span>`;
+    `<div class="section-title"><h2 id="collection-title">${state.view === "saved" ? t("My space", "我的空间") : state.view === "leaderboard" ? t("Community favorites", "大家都喜欢") : t("The good stuff", "有趣的，都在这里")}</h2><span class="count-badge">${visibleWorksCount}</span></div><span class="section-aside">${icon("leaf")}${state.view === "saved" ? t("Saved works, submissions & spotlight progress.", "收藏作品、投稿审核与赞助进度，一站查看。") : t("Small creations. A little joy.", "小小作品，大大乐趣。")}</span>`;
   const spaceTabs = [
     ["favorites", "bookmark", t("Saved", "我收藏的"), savedCount],
     ["submissions", "code", t("My submissions", "我的投稿"), state.submissions.length],
@@ -356,6 +427,48 @@ function filteredWorks() {
             .includes(query)),
     )
     .sort(compareWorks);
+}
+function getRelatedWorks(currentWork, limit = 6) {
+  return state.works
+    .filter((item) => item.id !== currentWork.id)
+    .sort((a, b) => {
+      const aSame = a.category === currentWork.category ? 0 : 1;
+      const bSame = b.category === currentWork.category ? 0 : 1;
+      if (aSame !== bSame) return aSame - bSame;
+      return (b.created_at || 0) - (a.created_at || 0);
+    })
+    .slice(0, limit);
+}
+function renderRelatedWorksHtml(currentWork) {
+  const related = getRelatedWorks(currentWork, 6);
+  if (!related.length) return "";
+  const cards = related
+    .map(
+      (item) =>
+        `<a class="related-work-card" href="/work/${esc(item.id)}" data-work="${esc(item.id)}"><div class="related-work-art">${artwork(item)}</div><div class="related-work-body"><span class="related-work-category">${icon(item.category)}${esc(categoryName(item.category))}</span><h4 class="related-work-title">${esc(title(item))}</h4><p class="related-work-desc">${esc(description(item))}</p><span class="related-work-credit">${esc(item.credit)}</span></div></a>`,
+    )
+    .join("");
+  return `<section class="related-works-section modal-related-works" aria-label="${t("Related Creations", "相关作品推荐")}"><div class="related-works-header"><h3>${t("Related Creations", "相关作品推荐")}</h3><span class="related-works-sub">${t("Same category prioritized · click to switch", "同分类优先推荐 · 点击无缝切换")}</span></div><div class="related-works-grid">${cards}</div></section>`;
+}
+function updateWorkShowcaseDom(work) {
+  const showcase = $("#work-showcase");
+  if (!showcase) return;
+  const titleEl = showcase.querySelector(".work-title");
+  if (titleEl) titleEl.textContent = title(work);
+  const bylineStrong = showcase.querySelector(".work-byline strong");
+  if (bylineStrong) bylineStrong.textContent = work.credit || "OneHTML Creator";
+  const stage = showcase.querySelector(".player-stage");
+  if (stage) {
+    stage.dataset.workId = work.id;
+    const launchBtn = stage.querySelector("[data-launch]");
+    if (launchBtn) {
+      launchBtn.dataset.launch = work.id;
+      const span = launchBtn.querySelector("span");
+      if (span) span.textContent = `${t("Play", "开始体验")} ${title(work)}`;
+    }
+    const previewLink = stage.querySelector('a[href*="/preview"]');
+    if (previewLink) previewLink.setAttribute("href", `/preview?work=${encodeURIComponent(work.id)}`);
+  }
 }
 function renderSpaceTab(element) {
   const query = state.search.trim().toLowerCase();
@@ -455,14 +568,35 @@ function closeModal() {
   $("#app-modal").close();
 }
 $("#app-modal").addEventListener("close", () => {
+  const wasWorkModal = state.modal === "work" || Boolean(state.work);
+  const closedWork = state.work;
   releasePlayer();
   modalEpoch++;
   state.sourceData = null;
   $("#modal-content").innerHTML = "";
   state.modal = null;
   state.work = null;
-  if (location.hash.startsWith("#work/"))
-    history.replaceState(null, "", location.pathname + location.search);
+  if (wasWorkModal || location.pathname.startsWith("/work/") || location.hash.startsWith("#work/")) {
+    const fallbackPath = closedWork ? getCategoryPath(closedWork.category) : "/";
+    const restorePath =
+      state.previousPath && !state.previousPath.startsWith("/work/")
+        ? state.previousPath
+        : fallbackPath;
+    state.previousPath = null;
+    try {
+      history.replaceState(null, "", restorePath);
+    } catch {}
+    const parsedUrl = new URL(restorePath, location.origin);
+    state.category = parseCategoryFromPathname(parsedUrl.pathname);
+    if ($("#work-showcase")) {
+      $("#work-showcase").hidden = true;
+    }
+    const hasCategoryIntro = Boolean($("#category-seo-intro") && state.category !== "all" && state.view === "discover");
+    if ($("#hero")) {
+      $("#hero").hidden = state.view !== "discover" || hasCategoryIntro;
+    }
+    render();
+  }
 });
 $("#app-modal").addEventListener("click", (event) => {
   if (event.target === $("#app-modal")) {
@@ -558,6 +692,10 @@ const WORK_TAGS_MAP = {
   "markflow-mindmap": ["#WebTool", "#Productivity", "#SVG", "#Markdown", "#Mindmap", "#SingleFileHTML"],
   "json-regex-lab": ["#WebTool", "#Productivity", "#JSON", "#Regex", "#DevTools", "#SingleFileHTML"],
   "css-gradient-studio": ["#WebTool", "#Productivity", "#CSS", "#DesignTools", "#WCAG", "#SingleFileHTML"],
+  "cellular-automata-sandbox": ["#ClaudeArtifacts", "#Canvas", "#CellularAutomata", "#Simulation", "#GenerativeArt", "#SingleFileHTML"],
+  "web-audio-synth-studio": ["#WebTool", "#WebAudio", "#AudioAPI", "#Canvas", "#GameDev", "#SingleFileHTML"],
+  "svg-path-bezier-editor": ["#WebTool", "#SVG", "#CSS", "#DesignTools", "#Productivity", "#SingleFileHTML"],
+  "7ff64f93-a1a6-4f4c-9618-23763484e1f2": ["#Canvas", "#ParticleSystem", "#GenerativeArt", "#Interactive", "#HTML5", "#SingleFileHTML"],
 };
 
 function getWorkTechTags(work) {
@@ -598,14 +736,35 @@ function getWorkTechTags(work) {
   return Array.from(tags);
 }
 
-async function openWork(workId) {
+async function openWork(workId, { fromPopState = false } = {}) {
   const work = state.works.find((item) => item.id === workId);
   if (!work) return;
+  const targetUrl = `/work/${work.id}`;
+  if (!state.previousPath) {
+    if (!location.pathname.startsWith("/work/")) {
+      state.previousPath = location.pathname + location.search;
+    } else {
+      state.previousPath = getCategoryPath(work.category);
+    }
+  }
   state.work = work;
-  history.replaceState(null, "", `#work/${work.id}`);
+  if (!fromPopState) {
+    try {
+      if (location.pathname === targetUrl && !location.hash) {
+        history.replaceState(null, "", targetUrl);
+      } else if (location.hash.startsWith("#work/")) {
+        history.replaceState(null, "", targetUrl);
+      } else {
+        history.pushState(null, "", targetUrl);
+      }
+    } catch {}
+  }
+  document.title = computeDocumentTitle();
+  updateWorkShowcaseDom(work);
   const tags = getWorkTechTags(work);
+  const relatedHtml = renderRelatedWorksHtml(work);
   openModal(
-    `<div class="player-header"><div class="player-heading"><span class="player-badge">${artwork(work)}</span><div><h2>${esc(title(work))}</h2><p>${esc(work.credit)} · ${categoryName(work.category)}${work.original ? " · " + t("Original demo", "本站原创示例") : ""}</p></div></div>${closeButton()}</div><div class="player-stage" id="player-stage">${artwork(work)}<div class="launch-overlay">${button(t("Let’s play", "开始体验"), "launch", "button-primary", "play")}<small>${t("Click to start · Sound may be enabled", "点击后运行 · 部分作品带有声音")}</small></div></div><div class="player-actions"><button class="button button-outline ${work.liked ? "active" : ""}" data-like="${work.id}" aria-pressed="${Boolean(work.liked)}">${icon("heart")}<span>${work.likes}</span></button><button class="button button-outline" data-save="${work.id}" aria-pressed="${Boolean(work.saved)}">${icon("bookmark")}<span>${work.saved ? t("Saved", "已收藏") : t("Save", "收藏")}</span></button><button class="button button-outline" data-open-preview="${work.id}">${icon("code")}${t("Open in Preview", "在预览台打开调试")}</button>${button(t("Share", "分享"), "share", "button-outline", "share")}${button(t("Fullscreen", "全屏"), "fullscreen", "button-outline", "fullscreen")}<button class="report-button" data-action="report">${t("Report an issue", "举报问题")}</button></div><div class="detail-columns"><div><p class="detail-description">${esc(description(work))}</p><div class="work-tech-tags" style="margin-bottom:16px;">${tags.map((t) => `<span class="tech-tag">${esc(t)}</span>`).join(" ")}</div><div class="detail-label">${t("A little conversation", "聊聊这个作品")}</div>${state.user ? `<form id="comment-form" class="comment-form"><textarea name="body" maxlength="2000" placeholder="${t("What do you think?", "你觉得怎么样？")}" aria-label="${t("Your comment", "你的评论")}" required></textarea><button class="button button-dark" type="submit">${t("Post", "发送")}</button></form>` : `<p class="modal-copy"><button class="text-button" data-action="login">${t("Sign in to join the conversation →", "登录，加入讨论 →")}</button></p>`}<div id="comments"><p class="no-comments">${t("Loading comments…", "正在加载评论…")}</p></div></div><aside class="detail-meta"><dl><div><dt>${t("Created by", "创作者")}</dt><dd>${esc(work.credit)}</dd></div><div><dt>${t("License", "作品许可")}</dt><dd>${esc(work.license)}</dd></div><div><dt>${t("Source", "作品来源")}</dt><dd>${work.source_url ? `<a href="${esc(work.source_url)}" target="_blank" rel="noopener noreferrer">${t("Visit original source ↗", "查看原始来源 ↗")}</a>` : work.original ? t("OneHTML original example", "OneHTML 本站原创示例") : t("Submitted by creator", "创作者投稿")}</dd></div><div><dt>${t("Format", "作品格式")}</dt><dd>${t("One HTML · Runs in your browser", "单个 HTML · 浏览器运行")}</dd></div></dl></aside></div>`,
+    `<div class="player-header"><div class="player-heading"><span class="player-badge">${artwork(work)}</span><div><h2>${esc(title(work))}</h2><p>${esc(work.credit)} · ${categoryName(work.category)}${work.original ? " · " + t("Original demo", "本站原创示例") : ""}</p></div></div>${closeButton()}</div><div class="player-stage" id="player-stage">${artwork(work)}<div class="launch-overlay">${button(t("Let’s play", "开始体验"), "launch", "button-primary", "play")}<small>${t("Click to start · Sound may be enabled", "点击后运行 · 部分作品带有声音")}</small></div></div><div class="player-actions"><button class="button button-outline ${work.liked ? "active" : ""}" data-like="${work.id}" aria-pressed="${Boolean(work.liked)}">${icon("heart")}<span>${work.likes}</span></button><button class="button button-outline" data-save="${work.id}" aria-pressed="${Boolean(work.saved)}">${icon("bookmark")}<span>${work.saved ? t("Saved", "已收藏") : t("Save", "收藏")}</span></button><button class="button button-outline" data-open-preview="${work.id}">${icon("code")}${t("Open in Preview", "在预览台打开调试")}</button>${button(t("Share", "分享"), "share", "button-outline", "share")}${button(t("Fullscreen", "全屏"), "fullscreen", "button-outline", "fullscreen")}<button class="report-button" data-action="report">${t("Report an issue", "举报问题")}</button></div><div class="detail-columns"><div><p class="detail-description">${esc(description(work))}</p><div class="work-tech-tags" style="margin-bottom:16px;">${tags.map((t) => `<span class="tech-tag">${esc(t)}</span>`).join(" ")}</div><div class="detail-label">${t("A little conversation", "聊聊这个作品")}</div>${state.user ? `<form id="comment-form" class="comment-form"><textarea name="body" maxlength="2000" placeholder="${t("What do you think?", "你觉得怎么样？")}" aria-label="${t("Your comment", "你的评论")}" required></textarea><button class="button button-dark" type="submit">${t("Post", "发送")}</button></form>` : `<p class="modal-copy"><button class="text-button" data-action="login">${t("Sign in to join the conversation →", "登录，加入讨论 →")}</button></p>`}<div id="comments"><p class="no-comments">${t("Loading comments…", "正在加载评论…")}</p></div></div><aside class="detail-meta"><dl><div><dt>${t("Created by", "创作者")}</dt><dd>${esc(work.credit)}</dd></div><div><dt>${t("License", "作品许可")}</dt><dd>${esc(work.license)}</dd></div><div><dt>${t("Source", "作品来源")}</dt><dd>${work.source_url ? `<a href="${esc(work.source_url)}" target="_blank" rel="noopener noreferrer">${t("Visit original source ↗", "查看原始来源 ↗")}</a>` : work.original ? t("OneHTML original example", "OneHTML 本站原创示例") : t("Submitted by creator", "创作者投稿")}</dd></div><div><dt>${t("Format", "作品格式")}</dt><dd>${t("One HTML · Runs in your browser", "单个 HTML · 浏览器运行")}</dd></div></dl></aside></div>${relatedHtml}`,
     "wide",
     "work",
   );
@@ -643,7 +802,7 @@ async function launch() {
     );
   if (activePlayer?.phase === "loading") return false;
   releasePlayer();
-  const stage = $("#player-stage");
+  const stage = $("#modal-content #player-stage") || $("#player-stage");
   const player = createPlayer({
     container: stage,
     title: title(work),
@@ -896,15 +1055,18 @@ async function openAdmin() {
 
 document.addEventListener("click", async (event) => {
   if (event.target.closest(".brand")) {
-    if (state.view === "preview") {
-      state.view = "discover";
-      if (location.pathname === "/preview") {
-        try { history.pushState(null, "", "/"); } catch(_) {}
-      }
-      render();
-    }
+    event.preventDefault();
+    state.view = "discover";
+    state.category = "all";
+    state.search = "";
+    if ($("#work-showcase")) $("#work-showcase").hidden = true;
+    try {
+      history.pushState(null, "", "/");
+    } catch (_) {}
+    render();
+    return;
   }
-  const element = event.target.closest("button,[data-view]");
+  const element = event.target.closest("button,[data-view],[data-work]");
   if (!element) return;
   try {
     if (element.dataset.openPreview) {
@@ -918,7 +1080,10 @@ document.addEventListener("click", async (event) => {
       await loadWorkIntoPlayground({ workId, workObj, state, t, icon, toast });
       return;
     }
-    if (element.dataset.work) return await openWork(element.dataset.work);
+    if (element.dataset.work) {
+      if (element.tagName === "A") event.preventDefault();
+      return await openWork(element.dataset.work);
+    }
     if (element.dataset.versions)
       return await openVersions(element.dataset.versions);
     if (element.dataset.versionUpload)
@@ -959,6 +1124,13 @@ document.addEventListener("click", async (event) => {
     }
     if (element.dataset.category) {
       state.category = element.dataset.category;
+      const nextPath = getCategoryPath(state.category);
+      if ($("#work-showcase")) $("#work-showcase").hidden = true;
+      try {
+        if (location.pathname !== nextPath) {
+          history.pushState(null, "", nextPath);
+        }
+      } catch (_) {}
       render();
       return;
     }
@@ -969,16 +1141,18 @@ document.addEventListener("click", async (event) => {
       state.view = element.dataset.view;
       state.category = "all";
       state.search = "";
-      render();
+      if ($("#work-showcase")) $("#work-showcase").hidden = true;
       if (state.view === "preview") {
         if (location.pathname !== "/preview" || location.search) {
           try { history.pushState(null, "", "/preview"); } catch(_) {}
         }
+        render();
         $("#preview-playground")?.scrollIntoView({ behavior: "smooth" });
       } else {
-        if (location.pathname === "/preview") {
+        if (location.pathname !== "/") {
           try { history.pushState(null, "", "/"); } catch(_) {}
         }
+        render();
         $("#collection")?.scrollIntoView({ behavior: "smooth" });
       }
       return;
@@ -1136,6 +1310,9 @@ document.addEventListener("click", async (event) => {
         state.view = "discover";
         state.category = "all";
         state.search = "";
+        try {
+          if (location.pathname !== "/") history.pushState(null, "", "/");
+        } catch (_) {}
         render();
         break;
       case "launch":
@@ -1165,14 +1342,18 @@ document.addEventListener("click", async (event) => {
       }
       case "fullscreen":
         if (!$("#player")) await launch();
-        await requestFullscreen($("#player-stage"));
+        await requestFullscreen($("#modal-content #player-stage") || $("#player-stage"));
         break;
-      case "share":
-        await navigator.clipboard.writeText(location.href);
+      case "share": {
+        const shareUrl = state.work?.id
+          ? `${location.origin}/work/${state.work.id}`
+          : `${location.origin}${location.pathname}`;
+        await navigator.clipboard.writeText(shareUrl);
         toast(
           t("Link copied. Share a little joy.", "链接已复制，把快乐分享出去。"),
         );
         break;
+      }
       case "sponsor":
         openSponsor();
         break;
@@ -1321,9 +1502,21 @@ document.addEventListener("visibilitychange", () => {
     activePlayer.stop();
 });
 window.addEventListener("popstate", () => {
+  const workPathMatch = location.pathname.match(/^\/work\/([a-z0-9-]+)$/);
+  if (workPathMatch) {
+    openWork(workPathMatch[1], { fromPopState: true }).catch((error) =>
+      toast(error.message),
+    );
+    return;
+  }
+  if ($("#app-modal")?.open && state.modal === "work") {
+    closeModal();
+  }
   const nextView = location.pathname === "/preview" || location.hash === "#preview" ? "preview" : "discover";
-  if (state.view !== nextView) {
+  const nextCategory = parseCategoryFromPathname(location.pathname);
+  if (state.view !== nextView || state.category !== nextCategory) {
     state.view = nextView;
+    state.category = nextCategory;
     render();
   }
   if (nextView === "preview") {
@@ -1336,8 +1529,15 @@ window.addEventListener("popstate", () => {
 });
 window.addEventListener("hashchange", () => {
   const match = location.hash.match(/^#work\/([a-z0-9-]+)$/);
-  if (match) openWork(match[1]).catch((error) => toast(error.message));
-  else if ($("#app-modal").open) closeModal();
+  if (match) {
+    const id = match[1];
+    try {
+      history.replaceState(null, "", `/work/${id}`);
+    } catch {}
+    openWork(id).catch((error) => toast(error.message));
+  } else if ($("#app-modal").open && state.modal === "work" && !location.pathname.startsWith("/work/")) {
+    closeModal();
+  }
 });
 load()
   .then(async () => {
@@ -1384,9 +1584,16 @@ load()
     }
     const pathMatch = location.pathname.match(/^\/work\/([a-z0-9-]+)$/);
     const match = location.hash.match(/^#work\/([a-z0-9-]+)$/);
-    if (match) return openWork(match[1]);
+    if (match) {
+      const id = match[1];
+      try {
+        history.replaceState(null, "", `/work/${id}`);
+      } catch {}
+      return openWork(id);
+    }
     if (pathMatch && $("#work-showcase") && $("#hero")) {
       $("#hero").innerHTML = "";
+      $("#hero").hidden = true;
     }
   })
   .catch((error) => {

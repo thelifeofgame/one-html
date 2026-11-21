@@ -26,7 +26,15 @@ export async function importCollection(
     )
       .bind(work.id)
       .first();
-    if (existing && (existing.author_id || existing.credit !== work.credit))
+    const preserveAuthor =
+      Boolean(work.preserve_author) &&
+      Boolean(existing) &&
+      existing.credit === work.credit;
+    if (
+      existing &&
+      !preserveAuthor &&
+      (existing.author_id || existing.credit !== work.credit)
+    )
       throw new Error(`Collection ID belongs to another creator: ${work.id}`);
     const versions = [];
     for (const item of work.versions) {
@@ -41,11 +49,18 @@ export async function importCollection(
       const digest = await hash(html);
       if (digest !== item.sha256)
         throw new Error(`Archive checksum mismatch: ${item.file}`);
+      const existingVersion = existing
+        ? await store.DB.prepare(
+            "SELECT id,object_key FROM work_versions WHERE work_id=? AND sha256=?",
+          )
+            .bind(work.id, digest)
+            .first()
+        : null;
       versions.push({
         html,
         digest,
-        id: `collection-${work.id}-${digest.slice(0, 16)}`,
-        key: `collection/${work.id}/${digest}.html`,
+        id: existingVersion?.id || `collection-${work.id}-${digest.slice(0, 16)}`,
+        key: existingVersion?.object_key || `collection/${work.id}/${digest}.html`,
         size: new TextEncoder().encode(html).byteLength,
         metadata: versionMetadata({
           ...work,
@@ -54,12 +69,13 @@ export async function importCollection(
         }),
       });
     }
-    prepared.push({ work, versions });
+    prepared.push({ work, versions, existing, preserveAuthor });
   }
   const statements = [];
   const now = Date.now();
-  for (const [index, { work, versions }] of prepared.entries()) {
+  for (const [index, { work, versions, existing, preserveAuthor }] of prepared.entries()) {
     const current = versions.at(-1);
+    const coverPath = work.cover || `/covers/${work.id}.png`;
     statements.push(
       store.DB.prepare(
         `INSERT OR IGNORE INTO works
@@ -68,14 +84,14 @@ export async function importCollection(
       ).bind(
         work.id,
         work.title,
-        work.title_zh,
-        work.description,
-        work.description_zh,
+        work.title_zh || "",
+        work.description || "",
+        work.description_zh || "",
         work.category,
         work.credit,
         current.key,
-        `/covers/${work.id}.png`,
-        work.source_url,
+        coverPath,
+        work.source_url || "",
         now - index * 1000,
       ),
     );
@@ -86,7 +102,7 @@ export async function importCollection(
       const statement = insertVersion(store.DB, {
         ...version,
         workId: work.id,
-        userId: null,
+        userId: preserveAuthor ? existing.author_id || null : null,
         now: now - index * 1000 + offset,
         status: version === current ? "published" : "archived",
         baseVersionId: versions[offset - 1]?.id || null,
@@ -102,26 +118,50 @@ export async function importCollection(
         "UPDATE work_versions SET status=CASE WHEN id=? THEN 'published' ELSE 'archived' END WHERE work_id=? AND status IN ('published','archived')",
       ).bind(current.id, work.id),
     );
-    statements.push(
-      store.DB.prepare(
-        `UPDATE works SET title=?,title_zh=?,description=?,description_zh=?,category=?,cover=?,source_url=?,license=?,status='published',
+    if (preserveAuthor) {
+      statements.push(
+        store.DB.prepare(
+          `UPDATE works SET title=?,title_zh=?,description=?,description_zh=?,category=?,cover=?,source_url=?,license=?,status='published',
+      object_key=?,builtin_path=NULL,current_version_id=?,sha256=?,content_bytes=? WHERE id=? AND credit=?`,
+        ).bind(
+          work.title,
+          work.title_zh || "",
+          work.description || "",
+          work.description_zh || "",
+          work.category,
+          coverPath,
+          work.source_url || current.metadata.source_url || "",
+          current.metadata.license,
+          current.key,
+          current.id,
+          current.digest,
+          current.size,
+          work.id,
+          work.credit,
+        ),
+      );
+    } else {
+      statements.push(
+        store.DB.prepare(
+          `UPDATE works SET title=?,title_zh=?,description=?,description_zh=?,category=?,cover=?,source_url=?,license=?,status='published',
       object_key=?,builtin_path=NULL,current_version_id=?,sha256=?,content_bytes=? WHERE id=? AND author_id IS NULL`,
-      ).bind(
-        work.title,
-        work.title_zh,
-        work.description,
-        work.description_zh,
-        work.category,
-        `/covers/${work.id}.png`,
-        work.source_url,
-        current.metadata.license,
-        current.key,
-        current.id,
-        current.digest,
-        current.size,
-        work.id,
-      ),
-    );
+        ).bind(
+          work.title,
+          work.title_zh || "",
+          work.description || "",
+          work.description_zh || "",
+          work.category,
+          coverPath,
+          work.source_url || current.metadata.source_url || "",
+          current.metadata.license,
+          current.key,
+          current.id,
+          current.digest,
+          current.size,
+          work.id,
+        ),
+      );
+    }
   }
   if (replaceDemos)
     statements.push(

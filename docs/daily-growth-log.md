@@ -37,3 +37,24 @@
 - **验证与发布**：
   - `npm run check`、`npm test`（46/46 全部通过）、`npm run cf:check` 均通过。
   - 主站 `https://onehtmlapp.com`（tmux `onehtml`）与 Cloudflare 生产边缘节点 `https://onehtml.onehtml.workers.dev`（含沙箱 `https://onehtml-play.onehtml.workers.dev`）均已上线并通过实测验证。
+
+---
+
+## 2026-11-21 (Day 3)
+- **巡检快照与审批状态**：
+  - 巡检基线：累计访问 `20,299` / 24h 访问 `107`；主站已发布 16 款（含社区投稿 `Gravity`，缺双语说明与专属封面且未同步至 Cloudflare 节点），Cloudflare 节点为 15 款；`openWork` 仍使用 `#work/:id` 分享链接且详情页相关推荐藏于 `<noscript>`；尚无 `/games`、`/experiments`、`/tools` 分类 SSR 页与 `/llms.txt`。
+  - 审批人：`@香港老大` 批准执行 Day 3 全部 3 项提案（1+2 并行优先、3 同步闭环，暂缓 `plays` 表结构变更以保持零数据库迁移风险）。
+- **已落地交付项**：
+  1. **提案 1：`/work/:id` 规范分享链接与可见相关作品推荐（P0）**：
+     - `public/app.js` 改造 `openWork` 与关闭弹窗逻辑为规范路径 `/work/:id`（完整保留 `#work/:id` 向下兼容与 `previousPath` 平滑回退），Share 按钮固定复制 `https://onehtmlapp.com/work/:id`。
+     - `src/worker.js`（`renderWorkDetail`）移除 `<noscript>` 包裹，按同分类优先 SQL 渲染可见的 6 款「Related Creations」推荐卡片；前端弹窗底部同步渲染 6 款同分类优先推荐卡片并支持弹窗内无缝切换；修复 `#showcase-player-stage` 与弹窗 `#player-stage` ID 冲突。
+  2. **提案 2：分类 SSR 落地页 + `/llms.txt` + Sitemap 扩容（P0）**：
+     - 新增 `/games`（`game`）、`/experiments`（`visual`）、`/tools`（`tool`）三大分类 SSR 落地页，输出专属 TDK、Canonical、OG/Twitter 卡片、`CollectionPage` + `ItemList` JSON-LD 与可见作品列表，并与前端 `parseCategoryFromPathname` 及分类 Tab 路由联动；`wrangler.json` 的 `run_worker_first` 同步纳入上述路由。
+     - 新增 `GET /llms.txt` 动态输出站点定位、核心入口与全部已发布作品直链；`/sitemap.xml` 扩展至 24 条 URL（首页 + `/preview` + 3 个分类页 + 19 款作品）；沙盒域访问 `/games`、`/experiments`、`/tools`、`/llms.txt` 均返回 `404` + `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet`。
+  3. **提案 3：3 款零依赖新作品 + 社区投稿 `Gravity` 归档优化 + 周六外推包（P1）**：
+     - 新增上线 3 款零外部依赖单文件作品：`cellular-automata-sandbox`（`visual`，36,566 bytes）、`web-audio-synth-studio`（`tool`，36,915 bytes）、`svg-path-bezier-editor`（`tool`，29,322 bytes）及 3 张 `1200×630` PNG 封面图。
+     - 升级 `scripts/import-collection.mjs` 支持 `preserve_author` 与已有 `work_versions` SHA-256 复用，原样归档社区投稿 `Gravity`（`7ff64f93-a1a6-4f4c-9618-23763484e1f2`），完整保留原作者 `author_id` 与署名 `credit: "孙猛"` 及现有版本 ID，补齐中英双语标题/深度介绍与 `1200×630` 封面图 `/covers/gravity.png`，并同步至 Cloudflare D1/KV。
+     - 产出周六 Showoff Saturday 多渠道推广文案包 `docs/launch-pack-2026-11-21.md`（Show HN、Reddit 4 板块、X 6-Tweet Thread）。
+- **验证与发布**：
+  - `npm run check`、`npm test`（50/50 全部通过）、`npm run cf:check` 均通过。
+  - 本地主站（`https://onehtmlapp.com`，tmux `onehtml`）与 Cloudflare 生产节点（`https://onehtml.onehtml.workers.dev` / `https://onehtml-play.onehtml.workers.dev`）均已同步上线并实测通过：双端均返回 **19 款**作品（`game: 6, visual: 8, tool: 5`）、`/sitemap.xml` **24 条** URL、`/llms.txt` 正常返回且沙盒试玩正常，真机无头浏览器实测 `/games`、`/tools`、`/work/:id` 与弹窗沙盒加载均无异常。

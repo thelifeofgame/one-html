@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="midnight">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Procedural Cellular Automata Sandbox — Multi-Rule Life Simulator</title>
+<style>
+  :root {
+    --bg: #0b1120;
+    --panel: #111827;
+    --panel-alt: #1e293b;
+    --border: #263449;
+    --ink: #f1f5f9;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent-glow: rgba(56, 189, 248, 0.25);
+    --canvas-bg: #070b14;
+    --grid-line: rgba(148, 163, 184, 0.08);
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+  [data-theme="paper"] {
+    --bg: #f6f5f0;
+    --panel: #ffffff;
+    --panel-alt: #f1efe7;
+    --border: #dfdcd2;
+    --ink: #1c1e1b;
+    --muted: #686b63;
+    --accent: #ea580c;
+    --accent-glow: rgba(234, 88, 12, 0.18);
+    --canvas-bg: #faf9f5;
+    --grid-line: rgba(28, 30, 27, 0.07);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--ink); font-family: var(--font);
+    -webkit-font-smoothing: antialiased; user-select: none;
+  }
+  .app { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
+  .topbar {
+    height: 52px; padding: 0 16px; background: var(--panel); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-shrink: 0;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14.5px; }
+  .brand-icon {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc);
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 4px;
+  }
+  .brand-icon span { background: #fff; border-radius: 1px; opacity: 0.25; }
+  .brand-icon span.on { opacity: 1; }
+  .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .btn {
+    height: 30px; padding: 0 11px; border-radius: 7px; border: 1px solid var(--border);
+    background: var(--panel-alt); color: var(--ink); font-size: 12px; font-weight: 600;
+    font-family: var(--font); cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+    transition: all 0.14s ease; white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #06101e; border-color: var(--accent); font-weight: 700; }
+  .btn.primary:hover { filter: brightness(1.08); color: #06101e; }
+  .btn.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); color: var(--accent); }
+  .workspace { flex: 1; display: grid; grid-template-columns: 330px 1fr; min-height: 0; }
+  @media (max-width: 860px) {
+    .workspace { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    .sidebar { max-height: 44vh; border-right: none !important; border-bottom: 1px solid var(--border); }
+  }
+  .sidebar {
+    background: var(--panel); border-right: 1px solid var(--border);
+    padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px;
+  }
+  .card {
+    background: var(--panel-alt); border: 1px solid var(--border);
+    border-radius: 10px; padding: 11px 12px; display: flex; flex-direction: column; gap: 9px;
+  }
+  .section-head {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+    color: var(--muted); display: flex; justify-content: space-between; align-items: center;
+  }
+  .rule-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .rule-tab {
+    padding: 7px 6px; border-radius: 7px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--ink); font-size: 11.5px; font-weight: 600;
+    cursor: pointer; text-align: center; transition: all 0.12s;
+  }
+  .rule-tab:hover { border-color: var(--accent); }
+  .rule-tab.active {
+    background: var(--accent); color: #07111f; border-color: var(--accent); font-weight: 700;
+  }
+  .rule-desc { font-size: 11.5px; color: var(--muted); line-height: 1.45; margin: 0; }
+  .presets-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .control-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; }
+  .control-row input[type="range"] { flex: 1; accent-color: var(--accent); cursor: pointer; }
+  .pill {
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 2px 7px; border-radius: 6px; min-width: 48px; text-align: center;
+  }
+  .palette-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .swatch {
+    height: 28px; border-radius: 7px; border: 2px solid transparent; cursor: pointer;
+    position: relative; overflow: hidden; transition: transform 0.12s;
+  }
+  .swatch:hover { transform: scale(1.06); }
+  .swatch.active { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); }
+  .stage-wrap {
+    position: relative; flex: 1; display: flex; flex-direction: column;
+    background: var(--canvas-bg); overflow: hidden;
+  }
+  canvas { display: block; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
+  .hud-bar {
+    position: absolute; top: 12px; left: 12px; right: 12px;
+    display: flex; justify-content: space-between; align-items: center; pointer-events: none; gap: 8px;
+  }
+  .hud-metrics {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    background: rgba(15, 23, 42, 0.82); backdrop-filter: blur(8px);
+    border: 1px solid rgba(148, 163, 184, 0.22); border-radius: 9px;
+    padding: 6px 12px; color: #f8fafc; font-family: var(--mono); font-size: 11.5px;
+  }
+  .hud-metrics span strong { color: #38bdf8; margin-left: 4px; }
+  .hud-hint {
+    background: rgba(15, 23, 42, 0.82); backdrop-filter: blur(8px);
+    border: 1px solid rgba(148, 163, 184, 0.22); border-radius: 9px;
+    padding: 6px 11px; color: #cbd5e1; font-size: 11.5px;
+  }
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.65);
+    display: none; align-items: center; justify-content: center; z-index: 50; padding: 20px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    width: 100%; max-width: 540px; padding: 16px; display: flex; flex-direction: column; gap: 12px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+  }
+  .modal textarea {
+    width: 100%; height: 150px; background: var(--canvas-bg); color: var(--ink);
+    border: 1px solid var(--border); border-radius: 8px; padding: 10px;
+    font-family: var(--mono); font-size: 11.5px; resize: vertical;
+  }
+  .toast {
+    position: fixed; bottom: 18px; right: 18px; background: var(--accent); color: #06101e;
+    padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 700;
+    opacity: 0; transform: translateY(8px); transition: all 0.2s; pointer-events: none; z-index: 90;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-icon" aria-hidden="true">
+        <span></span><span class="on"></span><span></span>
+        <span></span><span></span><span class="on"></span>
+        <span class="on"></span><span class="on"></span><span class="on"></span>
+      </div>
+      <span data-i18n="title">Cellular Automata Sandbox · 多规则细胞自动机沙盒</span>
+    </div>
+    <div class="toolbar">
+      <button class="btn primary" id="btn-play" title="Space to Play / Pause">⏸ <span data-i18n="pause">暂停 (Space)</span></button>
+      <button class="btn" id="btn-step" title="Step 1 Generation (N)">⏭ <span data-i18n="step">单步演化</span></button>
+      <button class="btn" id="btn-random">🎲 <span data-i18n="random">随机播种</span></button>
+      <button class="btn" id="btn-clear">🧹 <span data-i18n="clear">清空</span></button>
+      <button class="btn" id="btn-export">📦 <span data-i18n="export">状态导入/导出</span></button>
+      <button class="btn" id="btn-png">📸 <span data-i18n="png">导出 PNG</span></button>
+      <button class="btn" id="btn-lang">中 / EN</button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="sidebar">
+      <div class="card">
+        <div class="section-head">
+          <span data-i18n="sec_rule">1. 自动机规则引擎 (Automaton Rule)</span>
+          <span class="pill" id="rule-badge">B3/S23</span>
+        </div>
+        <div class="rule-tabs">
+          <button class="rule-tab active" data-rule="life">Conway's Life</button>
+          <button class="rule-tab" data-rule="brain">Brian's Brain</button>
+          <button class="rule-tab" data-rule="ant">Langton's Ant</button>
+        </div>
+        <p class="rule-desc" id="rule-desc">
+          康威生命游戏 (B3/S23)：死细胞周围有 3 个活邻居则诞生；活细胞周围有 2 或 3 个活邻居则存活，否则因孤立或拥挤死亡。
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <span data-i18n="sec_presets">2. 经典图腾预设 (Totem Presets)</span>
+        </div>
+        <div class="presets-grid" id="presets-container"></div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <span data-i18n="sec_brush">3. 画笔与模拟参数 (Brush &amp; Speed)</span>
+        </div>
+        <div class="control-row">
+          <span data-i18n="draw_mode">绘制工具</span>
+          <div style="display:flex;gap:5px;">
+            <button class="btn active" id="mode-draw" style="height:26px;padding:0 9px;">✏️ <span data-i18n="paint">涂抹</span></button>
+            <button class="btn" id="mode-erase" style="height:26px;padding:0 9px;">🧽 <span data-i18n="erase">橡皮</span></button>
+            <button class="btn" id="mode-stamp" style="height:26px;padding:0 9px;">🛸 <span data-i18n="glider">滑翔机印章</span></button>
+          </div>
+        </div>
+        <div class="control-row">
+          <span data-i18n="brush_size">画笔尺寸</span>
+          <input type="range" id="brush-slider" min="1" max="7" step="1" value="1" />
+          <span class="pill" id="brush-val">1×1</span>
+        </div>
+        <div class="control-row">
+          <span data-i18n="sim_speed">演化速率</span>
+          <input type="range" id="speed-slider" min="1" max="60" value="24" />
+          <span class="pill" id="speed-val">24 gen/s</span>
+        </div>
+        <div class="control-row">
+          <span data-i18n="cell_size">网格分辨率</span>
+          <input type="range" id="scale-slider" min="4" max="16" step="2" value="8" />
+          <span class="pill" id="scale-val">8 px</span>
+        </div>
+        <div class="control-row">
+          <span data-i18n="wrap_edges">环形周期边界 (Toroidal Wrap)</span>
+          <input type="checkbox" id="chk-wrap" checked style="accent-color:var(--accent);width:16px;height:16px;" />
+        </div>
+        <div class="control-row">
+          <span data-i18n="trail_glow">细胞余晖残影 (Phosphor Trail)</span>
+          <input type="checkbox" id="chk-trail" checked style="accent-color:var(--accent);width:16px;height:16px;" />
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <span data-i18n="sec_palette">4. 极客光谱调色盘 (Color Palette)</span>
+          <span class="pill" id="palette-name">Cyber Cyan</span>
+        </div>
+        <div class="palette-grid" id="palette-grid"></div>
+      </div>
+    </aside>
+
+    <main class="stage-wrap" id="stage-wrap">
+      <canvas id="ca-canvas"></canvas>
+      <div class="hud-bar">
+        <div class="hud-metrics">
+          <span>GEN:<strong id="hud-gen">0</strong></span>
+          <span>ALIVE:<strong id="hud-pop">0</strong></span>
+          <span>GRID:<strong id="hud-grid">0×0</strong></span>
+          <span id="hud-ants-wrap" style="display:none;">ANTS:<strong id="hud-ants">0</strong></span>
+        </div>
+        <div class="hud-hint" data-i18n="hud_hint">左键涂抹 · 右键擦除 · 空格暂停/继续 · N 单步</div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="export-modal">
+  <div class="modal">
+    <div class="section-head" style="font-size:13px;color:var(--ink);">
+      <span data-i18n="modal_title">全网格状态 JSON / RLE 导入与导出</span>
+      <button class="btn" id="modal-close" style="height:26px;">✕</button>
+    </div>
+    <textarea id="state-textarea" spellcheck="false" placeholder="Paste state JSON here..."></textarea>
+    <div style="display:flex;justify-content:flex-end;gap:8px;">
+      <button class="btn" id="btn-copy-state">📋 <span data-i18n="copy_json">复制状态数据</span></button>
+      <button class="btn primary" id="btn-load-state">📥 <span data-i18n="load_json">加载至沙盒</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Copied!</div>
+
+<script>
+(() => {
+  const PALETTES = [
+    { name: "Cyber Cyan", bg: "#070b14", alive: "#38bdf8", dying: "#818cf8", ant: "#f43f5e", trail: "#0c2d48" },
+    { name: "Bio Matrix", bg: "#050e09", alive: "#22c55e", dying: "#15803d", ant: "#facc15", trail: "#092e18" },
+    { name: "Solar Flare", bg: "#120907", alive: "#fb923c", dying: "#e11d48", ant: "#38bdf8", trail: "#3b130c" },
+    { name: "Synth Violet", bg: "#0d0818", alive: "#c084fc", dying: "#ec4899", ant: "#2dd4bf", trail: "#291547" },
+    { name: "Mono Amber", bg: "#0e0c08", alive: "#fbbf24", dying: "#b45309", ant: "#ef4444", trail: "#2e2208" }
+  ];
+
+  const I18N = {
+    zh: {
+      title: "Cellular Automata Sandbox · 多规则细胞自动机沙盒",
+      pause: "暂停 (Space)",
+      resume: "运行 (Space)",
+      step: "单步演化",
+      random: "随机播种",
+      clear: "清空",
+      export: "状态导入/导出",
+      png: "导出 PNG",
+      sec_rule: "1. 自动机规则引擎 (Automaton Rule)",
+      sec_presets: "2. 经典图腾预设 (Totem Presets)",
+      sec_brush: "3. 画笔与模拟参数 (Brush & Speed)",
+      draw_mode: "绘制工具",
+      paint: "涂抹",
+      erase: "橡皮",
+      glider: "滑翔机",
+      brush_size: "画笔尺寸",
+      sim_speed: "演化速率",
+      cell_size: "网格大小",
+      wrap_edges: "环形周期边界 (Toroidal Wrap)",
+      trail_glow: "细胞余晖残影 (Phosphor Trail)",
+      sec_palette: "4. 极客光谱调色盘 (Color Palette)",
+      hud_hint: "左键涂抹 · 右键擦除 · 空格暂停/继续 · N 单步",
+      modal_title: "全网格状态 JSON 导入与导出",
+      copy_json: "复制状态 JSON",
+      load_json: "加载至画布",
+      rule_life: "康威生命游戏 (B3/S23)：死细胞周围有 3 个活邻居则诞生；活细胞有 2 或 3 个活邻居则存活，否则失衡死亡。",
+      rule_brain: "布莱恩脑 (Brian's Brain)：三态自动机（激活 / 衰减 / 休眠）。周围恰好 2 个激活细胞即触发神经元脉冲波。",
+      rule_ant: "兰顿蚂蚁 (Langton's Ant)：图灵完备元胞机。在白格右转90°并染黑，在黑格左转90°并染白，最终涌现出104步周期的高速公路。"
+    },
+    en: {
+      title: "Procedural Cellular Automata Sandbox",
+      pause: "Pause (Space)",
+      resume: "Play (Space)",
+      step: "Step (N)",
+      random: "Randomize",
+      clear: "Clear",
+      export: "State I/O",
+      png: "Save PNG",
+      sec_rule: "1. Automaton Rule Engine",
+      sec_presets: "2. Classic Totem Presets",
+      sec_brush: "3. Brush & Simulation Controls",
+      draw_mode: "Brush Mode",
+      paint: "Draw",
+      erase: "Erase",
+      glider: "Glider Stamp",
+      brush_size: "Brush Size",
+      sim_speed: "Speed",
+      cell_size: "Cell Scale",
+      wrap_edges: "Toroidal Edge Wrapping",
+      trail_glow: "Phosphor Trail Glow",
+      sec_palette: "4. Color Spectrum Palette",
+      hud_hint: "Left Drag: Paint · Right Drag: Erase · Space: Play/Pause · N: Step",
+      modal_title: "Grid State JSON Import & Export",
+      copy_json: "Copy State JSON",
+      load_json: "Load State",
+      rule_life: "Conway's Game of Life (B3/S23): Cells born with 3 neighbors, survive with 2 or 3 neighbors. Emergent gliders and oscillators.",
+      rule_brain: "Brian's Brain (3-State Excitable Media): Cells transition Firing (1) -> Refractory (2) -> Dead (0). Born with 2 firing neighbors.",
+      rule_ant: "Langton's Ant: Turing-complete 2D turmite. Turns 90° right on empty cells, 90° left on live cells, flipping states and building highways."
+    }
+  };
+
+  const PRESETS = [
+    {
+      id: "gosper", rule: "life", label_zh: "🛸 高斯帕滑翔机枪", label_en: "🛸 Gosper Glider Gun",
+      coords: [
+        [24,0],[22,1],[24,1],[12,2],[13,2],[20,2],[21,2],[34,2],[35,2],
+        [11,3],[15,3],[20,3],[21,3],[34,3],[35,3],[0,4],[1,4],[10,4],[16,4],[20,4],[21,4],
+        [0,5],[1,5],[10,5],[14,5],[16,5],[17,5],[22,5],[24,5],[10,6],[16,6],[24,6],
+        [11,7],[15,7],[12,8],[13,8]
+      ]
+    },
+    {
+      id: "pulsar", rule: "life", label_zh: "💠 脉冲星对称振荡器", label_en: "💠 Pulsar Oscillator",
+      coords: (() => {
+        const q = [[2,0],[3,0],[4,0],[0,2],[5,2],[0,3],[5,3],[0,4],[5,4],[2,5],[3,5],[4,5]];
+        const out = [];
+        q.forEach(([x,y]) => {
+          out.push([6+x, 6+y], [6-x, 6+y], [6+x, 6-y], [6-x, 6-y]);
+        });
+        return out;
+      })()
+    },
+    {
+      id: "acorn", rule: "life", label_zh: "🌱 橡子长寿混沌种子", label_en: "🌱 Acorn Methuselah",
+      coords: [[1,0],[3,1],[0,2],[1,2],[4,2],[5,2],[6,2]]
+    },
+    {
+      id: "spaceship", rule: "life", label_zh: "🚀 重型太空船舰队", label_en: "🚀 Spaceship Armada",
+      coords: [
+        [1,0],[4,0],[0,1],[0,2],[4,2],[0,3],[1,3],[2,3],[3,3],
+        [12,6],[15,6],[11,7],[11,8],[15,8],[11,9],[12,9],[13,9],[14,9],
+        [2,12],[5,12],[1,13],[1,14],[5,14],[1,15],[2,15],[3,15],[4,15]
+      ]
+    },
+    {
+      id: "brain_spiral", rule: "brain", label_zh: "⚡ 神经元脉冲发生器", label_en: "⚡ Neural Spiral Wave",
+      coords: [[0,0],[1,0],[0,1],[1,1],[3,1],[4,2],[2,3],[3,4]],
+      dying: [[1,2],[2,1],[2,2],[0,2]]
+    },
+    {
+      id: "ant_colony", rule: "ant", label_zh: "🐜 四蚂蚁对称高速路", label_en: "🐜 Quad Ant Highway",
+      ants: [
+        { dx: -12, dy: -12, dir: 0 },
+        { dx: 12, dy: -12, dir: 1 },
+        { dx: 12, dy: 12, dir: 2 },
+        { dx: -12, dy: 12, dir: 3 }
+      ]
+    }
+  ];
+
+  const canvas = document.getElementById("ca-canvas");
+  const ctx = canvas.getContext("2d");
+
+  let lang = "zh";
+  let rule = "life"; // life | brain | ant
+  let running = true;
+  let cellSize = 8;
+  let cols = 120, rows = 80;
+  let grid = new Uint8Array(cols * rows);
+  let nextGrid = new Uint8Array(cols * rows);
+  let trailGrid = new Uint8Array(cols * rows);
+  let ants = []; // {x, y, dir: 0..3}
+  let generation = 0;
+  let speed = 24;
+  let brushSize = 1;
+  let brushMode = "draw"; // draw | erase | stamp
+  let wrapEdges = true;
+  let showTrail = true;
+  let paletteIdx = 0;
+
+  function showToast(msg) {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(showToast.t);
+    showToast.t = setTimeout(() => el.classList.remove("show"), 1800);
+  }
+
+  function initGrid(preserve = false) {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = Math.max(320, Math.floor(rect.width));
+    canvas.height = Math.max(240, Math.floor(rect.height));
+    const newCols = Math.floor(canvas.width / cellSize);
+    const newRows = Math.floor(canvas.height / cellSize);
+    const newGrid = new Uint8Array(newCols * newRows);
+    const newTrail = new Uint8Array(newCols * newRows);
+
+    if (preserve && grid.length) {
+      const minC = Math.min(cols, newCols);
+      const minR = Math.min(rows, newRows);
+      for (let r = 0; r < minR; r++) {
+        for (let c = 0; c < minC; c++) {
+          newGrid[r * newCols + c] = grid[r * cols + c];
+          newTrail[r * newCols + c] = trailGrid[r * cols + c];
+        }
+      }
+    }
+    cols = newCols;
+    rows = newRows;
+    grid = newGrid;
+    nextGrid = new Uint8Array(cols * rows);
+    trailGrid = newTrail;
+    document.getElementById("hud-grid").textContent = `${cols}×${rows}`;
+    render();
+  }
+
+  function clearGrid() {
+    grid.fill(0);
+    nextGrid.fill(0);
+    trailGrid.fill(0);
+    ants = [];
+    if (rule === "ant") {
+      ants.push({ x: Math.floor(cols / 2), y: Math.floor(rows / 2), dir: 0 });
+    }
+    generation = 0;
+    updateHud();
+    render();
+  }
+
+  function randomizeGrid() {
+    generation = 0;
+    trailGrid.fill(0);
+    if (rule === "life") {
+      for (let i = 0; i < grid.length; i++) {
+        grid[i] = Math.random() < 0.24 ? 1 : 0;
+      }
+    } else if (rule === "brain") {
+      for (let i = 0; i < grid.length; i++) {
+        const r = Math.random();
+        grid[i] = r < 0.12 ? 1 : r < 0.20 ? 2 : 0;
+      }
+    } else if (rule === "ant") {
+      grid.fill(0);
+      for (let i = 0; i < grid.length; i++) {
+        if (Math.random() < 0.04) grid[i] = 1;
+      }
+      ants = [];
+      for (let k = 0; k < 4; k++) {
+        ants.push({
+          x: Math.floor(cols * (0.25 + Math.random() * 0.5)),
+          y: Math.floor(rows * (0.25 + Math.random() * 0.5)),
+          dir: k % 4
+        });
+      }
+    }
+    updateHud();
+    render();
+  }
+
+  function applyPreset(preset) {
+    if (preset.rule !== rule) {
+      setRule(preset.rule, false);
+    }
+    clearGrid();
+    const cx = Math.floor(cols / 2);
+    const cy = Math.floor(rows / 2);
+
+    if (preset.coords) {
+      let maxX = 0, maxY = 0;
+      preset.coords.forEach(([x, y]) => {
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      });
+      const ox = Math.floor(cx - maxX / 2);
+      const oy = Math.floor(cy - maxY / 2);
+      preset.coords.forEach(([x, y]) => {
+        const gx = (ox + x + cols) % cols;
+        const gy = (oy + y + rows) % rows;
+        grid[gy * cols + gx] = 1;
+      });
+      if (preset.dying) {
+        preset.dying.forEach(([x, y]) => {
+          const gx = (ox + x + cols) % cols;
+          const gy = (oy + y + rows) % rows;
+          grid[gy * cols + gx] = 2;
+        });
+      }
+    }
+    if (preset.ants) {
+      ants = preset.ants.map(a => ({
+        x: (cx + a.dx + cols) % cols,
+        y: (cy + a.dy + rows) % rows,
+        dir: a.dir
+      }));
+    }
+    updateHud();
+    render();
+  }
+
+  function stepSimulation() {
+    if (rule === "life" || rule === "brain") {
+      nextGrid.fill(0);
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          let neighbors = 0;
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              if (dx === 0 && dy === 0) continue;
+              let nx = x + dx;
+              let ny = y + dy;
+              if (wrapEdges) {
+                nx = (nx + cols) % cols;
+                ny = (ny + rows) % rows;
+              } else if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) {
+                continue;
+              }
+              if (grid[ny * cols + nx] === 1) neighbors++;
+            }
+          }
+          const idx = y * cols + x;
+          const state = grid[idx];
+          if (rule === "life") {
+            if (state === 1) {
+              nextGrid[idx] = (neighbors === 2 || neighbors === 3) ? 1 : 0;
+            } else {
+              nextGrid[idx] = (neighbors === 3) ? 1 : 0;
+            }
+          } else {
+            // Brian's Brain: 1 (firing) -> 2 (dying) -> 0 (dead); 0 -> 1 if neighbors === 2
+            if (state === 1) nextGrid[idx] = 2;
+            else if (state === 2) nextGrid[idx] = 0;
+            else if (neighbors === 2) nextGrid[idx] = 1;
+          }
+          if (nextGrid[idx] === 1) {
+            trailGrid[idx] = 255;
+          } else if (trailGrid[idx] > 0) {
+            trailGrid[idx] = Math.max(0, trailGrid[idx] - 18);
+          }
+        }
+      }
+      grid.set(nextGrid);
+      generation++;
+    } else if (rule === "ant") {
+      if (ants.length === 0) {
+        ants.push({ x: Math.floor(cols / 2), y: Math.floor(rows / 2), dir: 0 });
+      }
+      const stepsPerFrame = Math.max(1, Math.floor(speed / 6));
+      const dirs = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+      for (let s = 0; s < stepsPerFrame; s++) {
+        for (let i = 0; i < ants.length; i++) {
+          const ant = ants[i];
+          const idx = ant.y * cols + ant.x;
+          const cell = grid[idx];
+          if (cell === 0) {
+            ant.dir = (ant.dir + 1) % 4;
+            grid[idx] = 1;
+            trailGrid[idx] = 255;
+          } else {
+            ant.dir = (ant.dir + 3) % 4;
+            grid[idx] = 0;
+          }
+          ant.x += dirs[ant.dir][0];
+          ant.y += dirs[ant.dir][1];
+          if (wrapEdges) {
+            ant.x = (ant.x + cols) % cols;
+            ant.y = (ant.y + rows) % rows;
+          } else {
+            ant.x = Math.max(0, Math.min(cols - 1, ant.x));
+            ant.y = Math.max(0, Math.min(rows - 1, ant.y));
+          }
+        }
+        generation++;
+      }
+    }
+    updateHud();
+    render();
+  }
+
+  function updateHud() {
+    let alive = 0;
+    for (let i = 0; i < grid.length; i++) {
+      if (grid[i] === 1) alive++;
+    }
+    document.getElementById("hud-gen").textContent = generation;
+    document.getElementById("hud-pop").textContent = alive;
+    const antsWrap = document.getElementById("hud-ants-wrap");
+    if (rule === "ant") {
+      antsWrap.style.display = "inline";
+      document.getElementById("hud-ants").textContent = ants.length;
+    } else {
+      antsWrap.style.display = "none";
+    }
+  }
+
+  function render() {
+    const pal = PALETTES[paletteIdx];
+    ctx.fillStyle = pal.bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Subtle grid lines when cellSize >= 8
+    if (cellSize >= 8) {
+      ctx.strokeStyle = "rgba(148, 163, 184, 0.06)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let x = 0; x <= cols; x++) {
+        ctx.moveTo(x * cellSize, 0);
+        ctx.lineTo(x * cellSize, rows * cellSize);
+      }
+      for (let y = 0; y <= rows; y++) {
+        ctx.moveTo(0, y * cellSize);
+        ctx.lineTo(cols * cellSize, y * cellSize);
+      }
+      ctx.stroke();
+    }
+
+    const pad = cellSize >= 6 ? 1 : 0;
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const idx = y * cols + x;
+        const val = grid[idx];
+        if (val === 1) {
+          ctx.fillStyle = pal.alive;
+          ctx.fillRect(x * cellSize + pad, y * cellSize + pad, cellSize - pad, cellSize - pad);
+        } else if (val === 2) {
+          ctx.fillStyle = pal.dying;
+          ctx.fillRect(x * cellSize + pad, y * cellSize + pad, cellSize - pad, cellSize - pad);
+        } else if (showTrail && trailGrid[idx] > 15) {
+          ctx.fillStyle = pal.trail;
+          ctx.fillRect(x * cellSize + pad, y * cellSize + pad, cellSize - pad, cellSize - pad);
+        }
+      }
+    }
+
+    if (rule === "ant") {
+      ctx.fillStyle = pal.ant;
+      for (const ant of ants) {
+        ctx.fillRect(ant.x * cellSize, ant.y * cellSize, cellSize, cellSize);
+      }
+    }
+  }
+
+  function setRule(newRule, loadDefaultPreset = true) {
+    rule = newRule;
+    document.querySelectorAll(".rule-tab").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.rule === rule);
+    });
+    const badge = document.getElementById("rule-badge");
+    badge.textContent = rule === "life" ? "B3/S23" : rule === "brain" ? "3-State" : "Turmite";
+    updateText();
+    if (loadDefaultPreset) {
+      const firstPreset = PRESETS.find(p => p.rule === rule);
+      if (firstPreset) applyPreset(firstPreset);
+    }
+  }
+
+  function updateText() {
+    const dict = I18N[lang];
+    document.querySelectorAll("[data-i18n]").forEach(el => {
+      const key = el.getAttribute("data-i18n");
+      if (dict[key]) el.textContent = dict[key];
+    });
+    const playBtn = document.getElementById("btn-play");
+    playBtn.innerHTML = running ? `⏸ <span>${dict.pause}</span>` : `▶️ <span>${dict.resume}</span>`;
+    document.getElementById("rule-desc").textContent =
+      rule === "life" ? dict.rule_life : rule === "brain" ? dict.rule_brain : dict.rule_ant;
+    renderPresetsButtons();
+  }
+
+  function renderPresetsButtons() {
+    const container = document.getElementById("presets-container");
+    container.innerHTML = "";
+    PRESETS.forEach(p => {
+      const btn = document.createElement("button");
+      btn.className = "btn";
+      btn.style.justifyContent = "flex-start";
+      btn.textContent = lang === "zh" ? p.label_zh : p.label_en;
+      btn.addEventListener("click", () => applyPreset(p));
+      container.appendChild(btn);
+    });
+  }
+
+  function renderPaletteSwatches() {
+    const container = document.getElementById("palette-grid");
+    container.innerHTML = "";
+    PALETTES.forEach((p, idx) => {
+      const sw = document.createElement("button");
+      sw.className = "swatch" + (idx === paletteIdx ? " active" : "");
+      sw.style.background = `linear-gradient(135deg, ${p.bg} 25%, ${p.alive} 65%, ${p.dying} 100%)`;
+      sw.title = p.name;
+      sw.addEventListener("click", () => {
+        paletteIdx = idx;
+        document.getElementById("palette-name").textContent = p.name;
+        renderPaletteSwatches();
+        render();
+      });
+      container.appendChild(sw);
+    });
+  }
+
+  // Pointer painting
+  let isPointerDown = false;
+  let activeButton = 0;
+
+  function paintAtClient(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const cx = Math.floor((clientX - rect.left) / cellSize);
+    const cy = Math.floor((clientY - rect.top) / cellSize);
+    if (cx < 0 || cx >= cols || cy < 0 || cy >= rows) return;
+
+    const erasing = activeButton === 2 || brushMode === "erase";
+    if (!erasing && brushMode === "stamp") {
+      if (rule === "ant") {
+        ants.push({ x: cx, y: cy, dir: Math.floor(Math.random() * 4) });
+      } else {
+        const glider = [[1,0],[2,1],[0,2],[1,2],[2,2]];
+        glider.forEach(([dx, dy]) => {
+          const gx = (cx + dx + cols) % cols;
+          const gy = (cy + dy + rows) % rows;
+          grid[gy * cols + gx] = 1;
+        });
+      }
+      updateHud();
+      render();
+      return;
+    }
+
+    const r = Math.floor(brushSize / 2);
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const gx = cx + dx;
+        const gy = cy + dy;
+        if (gx >= 0 && gx < cols && gy >= 0 && gy < rows) {
+          const idx = gy * cols + gx;
+          grid[idx] = erasing ? 0 : 1;
+          if (!erasing) trailGrid[idx] = 255;
+        }
+      }
+    }
+    updateHud();
+    render();
+  }
+
+  canvas.addEventListener("contextmenu", e => e.preventDefault());
+  canvas.addEventListener("pointerdown", e => {
+    isPointerDown = true;
+    activeButton = e.button;
+    paintAtClient(e.clientX, e.clientY);
+  });
+  window.addEventListener("pointermove", e => {
+    if (!isPointerDown || brushMode === "stamp") return;
+    paintAtClient(e.clientX, e.clientY);
+  });
+  window.addEventListener("pointerup", () => { isPointerDown = false; });
+
+  // Controls
+  document.getElementById("btn-play").addEventListener("click", () => {
+    running = !running;
+    updateText();
+  });
+  document.getElementById("btn-step").addEventListener("click", () => {
+    running = false;
+    updateText();
+    stepSimulation();
+  });
+  document.getElementById("btn-random").addEventListener("click", randomizeGrid);
+  document.getElementById("btn-clear").addEventListener("click", clearGrid);
+  document.getElementById("btn-lang").addEventListener("click", () => {
+    lang = lang === "zh" ? "en" : "zh";
+    updateText();
+  });
+
+  document.querySelectorAll(".rule-tab").forEach(btn => {
+    btn.addEventListener("click", () => setRule(btn.dataset.rule, true));
+  });
+
+  ["draw", "erase", "stamp"].forEach(m => {
+    document.getElementById(`mode-${m}`).addEventListener("click", () => {
+      brushMode = m;
+      ["draw", "erase", "stamp"].forEach(k => {
+        document.getElementById(`mode-${k}`).classList.toggle("active", k === m);
+      });
+    });
+  });
+
+  document.getElementById("brush-slider").addEventListener("input", e => {
+    brushSize = Number(e.target.value);
+    document.getElementById("brush-val").textContent = `${brushSize}×${brushSize}`;
+  });
+  document.getElementById("speed-slider").addEventListener("input", e => {
+    speed = Number(e.target.value);
+    document.getElementById("speed-val").textContent = `${speed} gen/s`;
+  });
+  document.getElementById("scale-slider").addEventListener("input", e => {
+    cellSize = Number(e.target.value);
+    document.getElementById("scale-val").textContent = `${cellSize} px`;
+    initGrid(true);
+  });
+  document.getElementById("chk-wrap").addEventListener("change", e => {
+    wrapEdges = e.target.checked;
+  });
+  document.getElementById("chk-trail").addEventListener("change", e => {
+    showTrail = e.target.checked;
+    render();
+  });
+
+  // Export & Import JSON state
+  const modal = document.getElementById("export-modal");
+  const textarea = document.getElementById("state-textarea");
+  document.getElementById("btn-export").addEventListener("click", () => {
+    const activeCells = [];
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const v = grid[y * cols + x];
+        if (v > 0) activeCells.push([x, y, v]);
+      }
+    }
+    const payload = {
+      rule, generation, cols, rows,
+      cells: activeCells,
+      ants: rule === "ant" ? ants : undefined
+    };
+    textarea.value = JSON.stringify(payload);
+    modal.classList.add("open");
+  });
+  document.getElementById("modal-close").addEventListener("click", () => modal.classList.remove("open"));
+  document.getElementById("btn-copy-state").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(textarea.value);
+      showToast(lang === "zh" ? "状态 JSON 已复制！" : "State JSON copied!");
+    } catch {
+      textarea.select();
+    }
+  });
+  document.getElementById("btn-load-state").addEventListener("click", () => {
+    try {
+      const data = JSON.parse(textarea.value);
+      if (data.rule && ["life", "brain", "ant"].includes(data.rule)) {
+        setRule(data.rule, false);
+      }
+      clearGrid();
+      if (Array.isArray(data.cells)) {
+        data.cells.forEach(([x, y, v]) => {
+          if (x >= 0 && x < cols && y >= 0 && y < rows) {
+            grid[y * cols + x] = v || 1;
+          }
+        });
+      }
+      if (Array.isArray(data.ants)) {
+        ants = data.ants.map(a => ({
+          x: (a.x + cols) % cols,
+          y: (a.y + rows) % rows,
+          dir: a.dir || 0
+        }));
+      }
+      generation = Number(data.generation) || 0;
+      updateHud();
+      render();
+      modal.classList.remove("open");
+      showToast(lang === "zh" ? "网格状态已导入！" : "Grid state loaded!");
+    } catch {
+      showToast(lang === "zh" ? "JSON 格式无效" : "Invalid JSON");
+    }
+  });
+
+  // PNG Snapshot
+  document.getElementById("btn-png").addEventListener("click", () => {
+    const a = document.createElement("a");
+    a.download = `cellular-automata-${rule}-gen${generation}.png`;
+    a.href = canvas.toDataURL("image/png");
+    a.click();
+    showToast(lang === "zh" ? "PNG 快照已导出" : "PNG snapshot saved");
+  });
+
+  // Keyboard shortcuts
+  window.addEventListener("keydown", e => {
+    if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT") return;
+    if (e.code === "Space") {
+      e.preventDefault();
+      running = !running;
+      updateText();
+    } else if (e.key === "n" || e.key === "N") {
+      running = false;
+      updateText();
+      stepSimulation();
+    } else if (e.key === "c" || e.key === "C") {
+      clearGrid();
+    } else if (e.key === "r" || e.key === "R") {
+      randomizeGrid();
+    }
+  });
+
+  window.addEventListener("resize", () => initGrid(true));
+
+  // Main animation loop
+  let lastStepTime = 0;
+  function animate(ts) {
+    if (running) {
+      const interval = 1000 / speed;
+      if (ts - lastStepTime >= interval) {
+        stepSimulation();
+        lastStepTime = ts;
+      }
+    }
+    requestAnimationFrame(animate);
+  }
+
+  renderPaletteSwatches();
+  initGrid(false);
+  updateText();
+  applyPreset(PRESETS[0]);
+  requestAnimationFrame(animate);
+})();
+</script>
+</body>
+</html>

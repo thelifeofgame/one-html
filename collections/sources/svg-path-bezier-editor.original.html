@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SVG Path &amp; Cubic-Bezier Visual Workbench</title>
+<style>
+  :root {
+    --bg: #f6f5f0;
+    --panel: #ffffff;
+    --panel-alt: #f2f0e8;
+    --border: #e2dfd5;
+    --ink: #1b1d1a;
+    --muted: #6c6f67;
+    --accent: #ea580c;
+    --accent-blue: #2563eb;
+    --accent-purple: #7c3aed;
+    --canvas-bg: #fcfbf8;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+  [data-theme="dark"] {
+    --bg: #0b1120;
+    --panel: #131c31;
+    --panel-alt: #1e293b;
+    --border: #28364f;
+    --ink: #f1f5f9;
+    --muted: #94a3b8;
+    --accent: #f97316;
+    --accent-blue: #38bdf8;
+    --accent-purple: #c084fc;
+    --canvas-bg: #070b14;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--ink); font-family: var(--font);
+    -webkit-font-smoothing: antialiased; user-select: none;
+  }
+  .app { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
+  .topbar {
+    height: 52px; padding: 0 16px; background: var(--panel); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-shrink: 0;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14.5px; }
+  .brand-mark {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: linear-gradient(135deg, #ea580c, #7c3aed);
+    display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 13px;
+  }
+  .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .btn {
+    height: 30px; padding: 0 11px; border-radius: 7px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--ink); font-size: 12px; font-weight: 600;
+    font-family: var(--font); cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+    transition: all 0.14s; white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 700; }
+  .btn.primary:hover { opacity: 0.92; color: #fff; }
+  .btn.active { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+
+  .workspace {
+    flex: 1; display: grid; grid-template-columns: 1fr 410px; min-height: 0; overflow: hidden;
+  }
+  @media (max-width: 960px) {
+    .workspace { grid-template-columns: 1fr; overflow-y: auto; }
+  }
+  .stage-col {
+    display: flex; flex-direction: column; min-height: 0; background: var(--canvas-bg); position: relative;
+  }
+  .stage-bar {
+    position: absolute; top: 12px; left: 12px; right: 12px;
+    display: flex; justify-content: space-between; align-items: center; gap: 8px; pointer-events: none; z-index: 10;
+  }
+  .stage-group {
+    pointer-events: auto; display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 9px;
+    padding: 5px 8px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  }
+  #path-svg { width: 100%; height: 100%; display: block; cursor: crosshair; touch-action: none; }
+
+  .sidebar {
+    background: var(--panel); border-left: 1px solid var(--border);
+    padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+  }
+  .card {
+    background: var(--panel-alt); border: 1px solid var(--border);
+    border-radius: 10px; padding: 11px 12px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .section-head {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+    color: var(--muted); display: flex; justify-content: space-between; align-items: center;
+  }
+  .code-area {
+    width: 100%; height: 68px; background: var(--panel); color: var(--ink);
+    border: 1px solid var(--border); border-radius: 7px; padding: 8px;
+    font-family: var(--mono); font-size: 11.5px; resize: none; line-height: 1.4;
+  }
+  .bezier-layout {
+    display: grid; grid-template-columns: 150px 1fr; gap: 10px; align-items: center;
+  }
+  #easing-svg {
+    width: 150px; height: 150px; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 8px; display: block; touch-action: none;
+  }
+  .easing-controls { display: flex; flex-direction: column; gap: 7px; }
+  .preset-chips { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; }
+  .chip {
+    padding: 5px 6px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--ink); font-size: 11px; font-weight: 600;
+    cursor: pointer; text-align: center;
+  }
+  .chip:hover, .chip.active { border-color: var(--accent); color: var(--accent); }
+
+  .race-track-wrap {
+    display: flex; flex-direction: column; gap: 6px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px;
+  }
+  .track-row { display: flex; align-items: center; gap: 8px; font-size: 11px; font-family: var(--mono); }
+  .track-label { width: 64px; color: var(--muted); font-weight: 700; }
+  .track-lane {
+    flex: 1; height: 16px; background: var(--panel-alt); border-radius: 999px;
+    position: relative; overflow: hidden; border: 1px solid var(--border);
+  }
+  .track-puck {
+    width: 14px; height: 14px; border-radius: 50%; position: absolute; top: 0; left: 2px;
+  }
+  .puck-custom { background: var(--accent); }
+  .puck-linear { background: var(--accent-blue); }
+
+  .toast {
+    position: fixed; bottom: 18px; right: 18px; background: var(--accent); color: #fff;
+    padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 700;
+    opacity: 0; transform: translateY(8px); transition: all 0.2s; pointer-events: none; z-index: 90;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">✒</div>
+      <span data-i18n="title">SVG Path &amp; Cubic-Bezier Workbench · 矢量路径与贝塞尔曲线工作台</span>
+    </div>
+    <div class="toolbar">
+      <button class="btn" id="btn-shape-heart">❤️ <span data-i18n="shape_heart">心形徽标</span></button>
+      <button class="btn" id="btn-shape-wave">🌊 <span data-i18n="shape_wave">流体波浪</span></button>
+      <button class="btn" id="btn-shape-badge">🛡️ <span data-i18n="shape_shield">几何盾牌</span></button>
+      <button class="btn" id="btn-add-node">➕ <span data-i18n="add_node">插入锚点</span></button>
+      <button class="btn" id="btn-toggle-close">🔗 <span data-i18n="close_path">闭合路径 (Z)</span></button>
+      <button class="btn" id="btn-download-svg">💾 <span data-i18n="dl_svg">导出 .SVG</span></button>
+      <button class="btn" id="btn-theme">🌗</button>
+      <button class="btn" id="btn-lang">中 / EN</button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <main class="stage-col">
+      <div class="stage-bar">
+        <div class="stage-group">
+          <span style="font-size:11.5px;font-weight:700;color:var(--muted);padding:0 4px;" data-i18n="canvas_tip">
+            拖拽圆点调节锚点(Anchor)与控制柄(Handles) · 双击画布空白处新增节点
+          </span>
+        </div>
+        <div class="stage-group">
+          <label style="font-size:11.5px;display:flex;align-items:center;gap:4px;cursor:pointer;">
+            <input type="checkbox" id="chk-fill" checked style="accent-color:var(--accent);" />
+            <span data-i18n="show_fill">渐变填充</span>
+          </label>
+          <label style="font-size:11.5px;display:flex;align-items:center;gap:4px;cursor:pointer;">
+            <input type="checkbox" id="chk-handles" checked style="accent-color:var(--accent);" />
+            <span data-i18n="show_handles">显示控制柄</span>
+          </label>
+          <span style="font-family:var(--mono);font-size:11px;color:var(--muted);" id="coord-readout">X: 300, Y: 200</span>
+        </div>
+      </div>
+
+      <svg id="path-svg" viewBox="0 0 640 460" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <pattern id="minor-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(148,163,184,0.12)" stroke-width="1" />
+          </pattern>
+          <pattern id="major-grid" width="100" height="100" patternUnits="userSpaceOnUse">
+            <rect width="100" height="100" fill="url(#minor-grid)" />
+            <path d="M 100 0 L 0 0 0 100" fill="none" stroke="rgba(148,163,184,0.24)" stroke-width="1" />
+          </pattern>
+          <linearGradient id="shape-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#ea580c" stop-opacity="0.22" />
+            <stop offset="100%" stop-color="#7c3aed" stop-opacity="0.22" />
+          </linearGradient>
+        </defs>
+        <rect width="640" height="460" fill="url(#major-grid)" id="grid-bg" />
+        <path id="main-path" d="" fill="url(#shape-grad)" stroke="#ea580c" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
+        <g id="handles-layer"></g>
+        <g id="anchors-layer"></g>
+      </svg>
+    </main>
+
+    <aside class="sidebar">
+      <div class="card">
+        <div class="section-head">
+          <span data-i18n="sec_path_d">1. 实时精简 SVG &lt;path d="..."&gt;</span>
+          <div style="display:flex;gap:5px;">
+            <button class="btn" id="btn-copy-d" style="height:24px;padding:0 8px;font-size:11px;">📋 <span data-i18n="copy_d">复制 d 属性</span></button>
+            <button class="btn primary" id="btn-copy-svg" style="height:24px;padding:0 8px;font-size:11px;">📋 <span data-i18n="copy_svg">复制 SVG</span></button>
+          </div>
+        </div>
+        <textarea class="code-area" id="path-d-output" spellcheck="false"></textarea>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--muted);">
+          <span>Nodes: <strong id="node-count" style="color:var(--ink);">4</strong></span>
+          <span>Precision:
+            <select id="sel-precision" style="font-family:var(--mono);font-size:11px;border-radius:4px;border:1px solid var(--border);background:var(--panel);color:var(--ink);">
+              <option value="0">Integer (0 dec)</option>
+              <option value="1" selected>Compact (1 dec)</option>
+            </select>
+          </span>
+          <button class="btn" id="btn-del-node" style="height:22px;padding:0 7px;font-size:11px;">🗑️ <span data-i18n="del_selected">删除选中点</span></button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <span data-i18n="sec_bezier">2. CSS cubic-bezier() 缓动曲线调试器</span>
+          <button class="btn" id="btn-copy-css" style="height:24px;padding:0 8px;font-size:11px;">📋 <span data-i18n="copy_css">复制 CSS</span></button>
+        </div>
+        <div class="bezier-layout">
+          <svg id="easing-svg" viewBox="0 0 150 150">
+            <line x1="20" y1="130" x2="130" y2="20" stroke="rgba(148,163,184,0.35)" stroke-dasharray="3,3" stroke-width="1.5" />
+            <line id="ease-h1" x1="20" y1="130" x2="55" y2="35" stroke="#2563eb" stroke-width="1.8" />
+            <line id="ease-h2" x1="130" y1="20" x2="95" y2="115" stroke="#7c3aed" stroke-width="1.8" />
+            <path id="ease-curve" d="M 20 130 C 55 35, 95 115, 130 20" fill="none" stroke="#ea580c" stroke-width="3" />
+            <circle id="ease-p1" cx="55" cy="35" r="6.5" fill="#2563eb" stroke="#fff" stroke-width="2" style="cursor:grab;" />
+            <circle id="ease-p2" cx="95" cy="115" r="6.5" fill="#7c3aed" stroke="#fff" stroke-width="2" style="cursor:grab;" />
+          </svg>
+          <div class="easing-controls">
+            <div style="font-family:var(--mono);font-size:11.5px;font-weight:700;background:var(--panel);padding:6px 8px;border-radius:6px;border:1px solid var(--border);word-break:break-all;" id="bezier-formula">
+              cubic-bezier(0.25, 0.85, 0.35, 1.00)
+            </div>
+            <div class="preset-chips">
+              <button class="chip active" data-ease="0.22,1,0.36,1">EaseOutQuart</button>
+              <button class="chip" data-ease="0.68,-0.35,0.27,1.35">SpringPop</button>
+              <button class="chip" data-ease="0.4,0,0.2,1">MaterialStd</button>
+              <button class="chip" data-ease="0.85,0,0.15,1">ExpoInOut</button>
+            </div>
+            <button class="btn primary" id="btn-play-race" style="justify-content:center;">▶️ <span data-i18n="test_anim">播放动画对比预览</span></button>
+          </div>
+        </div>
+
+        <div class="race-track-wrap">
+          <div class="track-row">
+            <span class="track-label">CUSTOM</span>
+            <div class="track-lane"><div class="track-puck puck-custom" id="puck-custom"></div></div>
+          </div>
+          <div class="track-row">
+            <span class="track-label">LINEAR</span>
+            <div class="track-lane"><div class="track-puck puck-linear" id="puck-linear"></div></div>
+          </div>
+        </div>
+        <textarea class="code-area" id="css-output" readonly spellcheck="false" style="height:54px;"></textarea>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="toast" id="toast">Copied!</div>
+
+<script>
+(() => {
+  const I18N = {
+    zh: {
+      title: "SVG Path & Cubic-Bezier Workbench · 矢量路径与贝塞尔曲线工作台",
+      shape_heart: "心形徽标",
+      shape_wave: "流体波浪",
+      shape_shield: "几何盾牌",
+      add_node: "插入锚点",
+      close_path: "闭合路径 (Z)",
+      dl_svg: "导出 .SVG",
+      canvas_tip: "拖拽方形锚点与圆形控制柄实时塑形 · 双击画布空白处追加节点",
+      show_fill: "渐变填充",
+      show_handles: "显示控制柄",
+      sec_path_d: "1. 实时精简 SVG <path d=\"...\">",
+      copy_d: "复制 d 属性",
+      copy_svg: "复制完整 SVG",
+      del_selected: "删除选中锚点",
+      sec_bezier: "2. CSS cubic-bezier() 动画对比预览",
+      copy_css: "复制 CSS",
+      test_anim: "触发缓动对比动画"
+    },
+    en: {
+      title: "SVG Path & Cubic-Bezier Visual Workbench",
+      shape_heart: "Heart Crest",
+      shape_wave: "Fluid Wave",
+      shape_shield: "Shield Badge",
+      add_node: "Insert Node",
+      close_path: "Toggle Close (Z)",
+      dl_svg: "Export .SVG",
+      canvas_tip: "Drag square anchors & round handles · Double-click canvas to add node",
+      show_fill: "Gradient Fill",
+      show_handles: "Show Handles",
+      sec_path_d: "1. Live Minified SVG <path d=\"...\">",
+      copy_d: "Copy d",
+      copy_svg: "Copy SVG",
+      del_selected: "Delete Node",
+      sec_bezier: "2. CSS cubic-bezier() Animation Comparison",
+      copy_css: "Copy CSS",
+      test_anim: "Replay Easing Comparison"
+    }
+  };
+
+  const SHAPES = {
+    heart: {
+      closed: true,
+      nodes: [
+        { x: 320, y: 130, c1x: 260, c1y: 60,  c2x: 410, c2y: 60 },
+        { x: 470, y: 210, c1x: 470, c1y: 120, c2x: 470, c2y: 295 },
+        { x: 320, y: 380, c1x: 390, c1y: 345, c2x: 250, c2y: 345 },
+        { x: 170, y: 210, c1x: 170, c1y: 295, c2x: 170, c2y: 120 }
+      ]
+    },
+    wave: {
+      closed: false,
+      nodes: [
+        { x: 70,  y: 260, c1x: 70,  c1y: 260, c2x: 150, c2y: 100 },
+        { x: 240, y: 230, c1x: 180, c1y: 110, c2x: 300, c2y: 350 },
+        { x: 410, y: 210, c1x: 350, c1y: 340, c2x: 470, c2y: 90 },
+        { x: 570, y: 240, c1x: 510, c1y: 100, c2x: 570, c2y: 240 }
+      ]
+    },
+    shield: {
+      closed: true,
+      nodes: [
+        { x: 320, y: 75,  c1x: 230, c1y: 75,  c2x: 410, c2y: 75 },
+        { x: 460, y: 140, c1x: 430, c1y: 95,  c2x: 470, c2y: 250 },
+        { x: 320, y: 395, c1x: 415, c1y: 345, c2x: 225, c2y: 345 },
+        { x: 180, y: 140, c1x: 170, c1y: 250, c2x: 210, c2y: 95 }
+      ]
+    }
+  };
+
+  let lang = "zh";
+  let nodes = [];
+  let closed = true;
+  let selectedIdx = 0;
+  let showFill = true;
+  let showHandles = true;
+  let precision = 1;
+
+  // Dragging state for SVG Path canvas
+  let dragTarget = null; // { idx, part: 'anchor' | 'c1' | 'c2' }
+
+  // Cubic-bezier easing state: P1(x1, y1), P2(x2, y2) in [0..1]
+  let ease = { x1: 0.22, y1: 1.0, x2: 0.36, y2: 1.0 };
+  let draggingEase = null; // 'p1' | 'p2'
+
+  const svg = document.getElementById("path-svg");
+  const mainPath = document.getElementById("main-path");
+  const handlesLayer = document.getElementById("handles-layer");
+  const anchorsLayer = document.getElementById("anchors-layer");
+
+  function showToast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(showToast.timer);
+    showToast.timer = setTimeout(() => t.classList.remove("show"), 1800);
+  }
+
+  function fmt(n) {
+    return precision === 0 ? Math.round(n) : Number(n.toFixed(1));
+  }
+
+  function buildPathD() {
+    if (!nodes.length) return "";
+    const parts = [`M ${fmt(nodes[0].x)} ${fmt(nodes[0].y)}`];
+    for (let i = 0; i < nodes.length - 1; i++) {
+      const curr = nodes[i];
+      const next = nodes[i + 1];
+      parts.push(`C ${fmt(curr.c2x)} ${fmt(curr.c2y)}, ${fmt(next.c1x)} ${fmt(next.c1y)}, ${fmt(next.x)} ${fmt(next.y)}`);
+    }
+    if (closed && nodes.length > 2) {
+      const last = nodes[nodes.length - 1];
+      const first = nodes[0];
+      parts.push(`C ${fmt(last.c2x)} ${fmt(last.c2y)}, ${fmt(first.c1x)} ${fmt(first.c1y)}, ${fmt(first.x)} ${fmt(first.y)} Z`);
+    }
+    return parts.join(" ");
+  }
+
+  function renderPathWorkspace() {
+    const d = buildPathD();
+    mainPath.setAttribute("d", d);
+    mainPath.setAttribute("fill", showFill ? "url(#shape-grad)" : "none");
+    document.getElementById("path-d-output").value = d;
+    document.getElementById("node-count").textContent = nodes.length;
+
+    handlesLayer.innerHTML = "";
+    anchorsLayer.innerHTML = "";
+
+    nodes.forEach((n, idx) => {
+      const isSel = idx === selectedIdx;
+
+      if (showHandles) {
+        // Lines from anchor to c1 & c2
+        [["c1", n.c1x, n.c1y, "#2563eb"], ["c2", n.c2x, n.c2y, "#7c3aed"]].forEach(([part, cx, cy, color]) => {
+          const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          line.setAttribute("x1", n.x);
+          line.setAttribute("y1", n.y);
+          line.setAttribute("x2", cx);
+          line.setAttribute("y2", cy);
+          line.setAttribute("stroke", color);
+          line.setAttribute("stroke-width", "1.5");
+          line.setAttribute("stroke-dasharray", "3,2");
+          handlesLayer.appendChild(line);
+
+          const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+          c.setAttribute("cx", cx);
+          c.setAttribute("cy", cy);
+          c.setAttribute("r", "5.5");
+          c.setAttribute("fill", color);
+          c.setAttribute("stroke", "#ffffff");
+          c.setAttribute("stroke-width", "1.8");
+          c.style.cursor = "grab";
+          c.addEventListener("pointerdown", e => {
+            e.stopPropagation();
+            selectedIdx = idx;
+            dragTarget = { idx, part };
+          });
+          handlesLayer.appendChild(c);
+        });
+      }
+
+      // Square anchor point
+      const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      const size = isSel ? 11 : 9;
+      rect.setAttribute("x", n.x - size / 2);
+      rect.setAttribute("y", n.y - size / 2);
+      rect.setAttribute("width", size);
+      rect.setAttribute("height", size);
+      rect.setAttribute("rx", "2");
+      rect.setAttribute("fill", isSel ? "#ea580c" : "#ffffff");
+      rect.setAttribute("stroke", "#ea580c");
+      rect.setAttribute("stroke-width", "2.2");
+      rect.style.cursor = "move";
+      rect.addEventListener("pointerdown", e => {
+        e.stopPropagation();
+        selectedIdx = idx;
+        dragTarget = { idx, part: "anchor" };
+        renderPathWorkspace();
+      });
+      anchorsLayer.appendChild(rect);
+    });
+  }
+
+  function loadShape(key) {
+    const preset = SHAPES[key];
+    if (!preset) return;
+    closed = preset.closed;
+    nodes = preset.nodes.map(n => ({ ...n }));
+    selectedIdx = 0;
+    renderPathWorkspace();
+  }
+
+  function clientToSvg(svgEl, clientX, clientY) {
+    const pt = svgEl.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    const ctm = svgEl.getScreenCTM();
+    return ctm ? pt.matrixTransform(ctm.inverse()) : { x: 0, y: 0 };
+  }
+
+  svg.addEventListener("pointermove", e => {
+    const pt = clientToSvg(svg, e.clientX, e.clientY);
+    const x = Math.max(10, Math.min(630, pt.x));
+    const y = Math.max(10, Math.min(450, pt.y));
+    document.getElementById("coord-readout").textContent = `X: ${Math.round(x)}, Y: ${Math.round(y)}`;
+
+    if (!dragTarget) return;
+    const node = nodes[dragTarget.idx];
+    if (!node) return;
+    if (dragTarget.part === "anchor") {
+      const dx = x - node.x;
+      const dy = y - node.y;
+      node.x = x;
+      node.y = y;
+      node.c1x += dx;
+      node.c1y += dy;
+      node.c2x += dx;
+      node.c2y += dy;
+    } else if (dragTarget.part === "c1") {
+      node.c1x = x;
+      node.c1y = y;
+    } else if (dragTarget.part === "c2") {
+      node.c2x = x;
+      node.c2y = y;
+    }
+    renderPathWorkspace();
+  });
+
+  window.addEventListener("pointerup", () => {
+    dragTarget = null;
+    draggingEase = null;
+  });
+
+  svg.addEventListener("dblclick", e => {
+    const pt = clientToSvg(svg, e.clientX, e.clientY);
+    nodes.push({
+      x: pt.x, y: pt.y,
+      c1x: pt.x - 40, c1y: pt.y - 25,
+      c2x: pt.x + 40, c2y: pt.y + 25
+    });
+    selectedIdx = nodes.length - 1;
+    renderPathWorkspace();
+  });
+
+  // Cubic-bezier Easing Editor
+  const easingSvg = document.getElementById("easing-svg");
+  function renderEasingCurve() {
+    const toX = v => 20 + v * 110;
+    const toY = v => 130 - v * 110;
+    const x1 = toX(ease.x1), y1 = toY(ease.y1);
+    const x2 = toX(ease.x2), y2 = toY(ease.y2);
+
+    document.getElementById("ease-h1").setAttribute("x2", x1);
+    document.getElementById("ease-h1").setAttribute("y2", y1);
+    document.getElementById("ease-h2").setAttribute("x2", x2);
+    document.getElementById("ease-h2").setAttribute("y2", y2);
+    document.getElementById("ease-p1").setAttribute("cx", x1);
+    document.getElementById("ease-p1").setAttribute("cy", y1);
+    document.getElementById("ease-p2").setAttribute("cx", x2);
+    document.getElementById("ease-p2").setAttribute("cy", y2);
+    document.getElementById("ease-curve").setAttribute("d", `M 20 130 C ${x1.toFixed(1)} ${y1.toFixed(1)}, ${x2.toFixed(1)} ${y2.toFixed(1)}, 130 20`);
+
+    const fn = `cubic-bezier(${ease.x1.toFixed(2)}, ${ease.y1.toFixed(2)}, ${ease.x2.toFixed(2)}, ${ease.y2.toFixed(2)})`;
+    document.getElementById("bezier-formula").textContent = fn;
+    document.getElementById("css-output").value =
+      `transition: transform 650ms ${fn};\n--easing-curve: ${fn};`;
+  }
+
+  document.getElementById("ease-p1").addEventListener("pointerdown", e => {
+    e.stopPropagation();
+    draggingEase = "p1";
+  });
+  document.getElementById("ease-p2").addEventListener("pointerdown", e => {
+    e.stopPropagation();
+    draggingEase = "p2";
+  });
+
+  easingSvg.addEventListener("pointermove", e => {
+    if (!draggingEase) return;
+    const pt = clientToSvg(easingSvg, e.clientX, e.clientY);
+    const nx = Math.max(0, Math.min(1, (pt.x - 20) / 110));
+    const ny = Math.max(-0.35, Math.min(1.35, (130 - pt.y) / 110));
+    if (draggingEase === "p1") {
+      ease.x1 = nx; ease.y1 = ny;
+    } else {
+      ease.x2 = nx; ease.y2 = ny;
+    }
+    renderEasingCurve();
+  });
+
+  let raceDir = 1;
+  function playEasingComparison() {
+    const fn = `cubic-bezier(${ease.x1.toFixed(2)}, ${ease.y1.toFixed(2)}, ${ease.x2.toFixed(2)}, ${ease.y2.toFixed(2)})`;
+    const pCustom = document.getElementById("puck-custom");
+    const pLinear = document.getElementById("puck-linear");
+    const laneW = pCustom.parentElement.clientWidth - 20;
+    const targetX = raceDir === 1 ? Math.max(120, laneW) : 0;
+    raceDir *= -1;
+
+    pCustom.style.transition = `transform 750ms ${fn}`;
+    pLinear.style.transition = `transform 750ms linear`;
+    pCustom.style.transform = `translateX(${targetX}px)`;
+    pLinear.style.transform = `translateX(${targetX}px)`;
+  }
+
+  document.querySelectorAll(".chip").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".chip").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      const [x1, y1, x2, y2] = btn.dataset.ease.split(",").map(Number);
+      ease = { x1, y1, x2, y2 };
+      renderEasingCurve();
+      playEasingComparison();
+    });
+  });
+
+  document.getElementById("btn-play-race").addEventListener("click", playEasingComparison);
+
+  // Toolbar actions
+  document.getElementById("btn-shape-heart").addEventListener("click", () => loadShape("heart"));
+  document.getElementById("btn-shape-wave").addEventListener("click", () => loadShape("wave"));
+  document.getElementById("btn-shape-badge").addEventListener("click", () => loadShape("shield"));
+
+  document.getElementById("btn-add-node").addEventListener("click", () => {
+    const curr = nodes[selectedIdx] || { x: 300, y: 220 };
+    const next = nodes[(selectedIdx + 1) % nodes.length] || { x: 380, y: 260 };
+    const mx = (curr.x + next.x) / 2;
+    const my = (curr.y + next.y) / 2;
+    nodes.splice(selectedIdx + 1, 0, {
+      x: mx, y: my,
+      c1x: mx - 35, c1y: my - 25,
+      c2x: mx + 35, c2y: my + 25
+    });
+    selectedIdx = selectedIdx + 1;
+    renderPathWorkspace();
+  });
+
+  document.getElementById("btn-del-node").addEventListener("click", () => {
+    if (nodes.length <= 2) {
+      showToast(lang === "zh" ? "至少保留 2 个锚点" : "Keep at least 2 nodes");
+      return;
+    }
+    nodes.splice(selectedIdx, 1);
+    selectedIdx = Math.max(0, selectedIdx - 1);
+    renderPathWorkspace();
+  });
+
+  document.getElementById("btn-toggle-close").addEventListener("click", () => {
+    closed = !closed;
+    renderPathWorkspace();
+  });
+
+  document.getElementById("chk-fill").addEventListener("change", e => {
+    showFill = e.target.checked;
+    renderPathWorkspace();
+  });
+  document.getElementById("chk-handles").addEventListener("change", e => {
+    showHandles = e.target.checked;
+    renderPathWorkspace();
+  });
+  document.getElementById("sel-precision").addEventListener("change", e => {
+    precision = Number(e.target.value);
+    renderPathWorkspace();
+  });
+
+  document.getElementById("btn-copy-d").addEventListener("click", async () => {
+    const val = document.getElementById("path-d-output").value;
+    try {
+      await navigator.clipboard.writeText(val);
+      showToast(lang === "zh" ? "SVG path d 属性已复制！" : "Path d copied!");
+    } catch {
+      document.getElementById("path-d-output").select();
+    }
+  });
+
+  function getCleanSvgMarkup() {
+    const d = buildPathD();
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 460" width="640" height="460">\n  <path d="${d}" fill="${showFill ? "rgba(234,88,12,0.18)" : "none"}" stroke="#ea580c" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>\n</svg>`;
+  }
+
+  document.getElementById("btn-copy-svg").addEventListener("click", async () => {
+    const markup = getCleanSvgMarkup();
+    try {
+      await navigator.clipboard.writeText(markup);
+      showToast(lang === "zh" ? "完整 SVG 代码已复制！" : "SVG markup copied!");
+    } catch {}
+  });
+
+  document.getElementById("btn-download-svg").addEventListener("click", () => {
+    const blob = new Blob([getCleanSvgMarkup()], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "bezier-vector-path.svg";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    showToast(lang === "zh" ? ".SVG 矢量文件已导出" : ".SVG file downloaded");
+  });
+
+  document.getElementById("btn-copy-css").addEventListener("click", async () => {
+    const val = document.getElementById("css-output").value;
+    try {
+      await navigator.clipboard.writeText(val);
+      showToast(lang === "zh" ? "CSS cubic-bezier 代码已复制！" : "CSS cubic-bezier copied!");
+    } catch {
+      document.getElementById("css-output").select();
+    }
+  });
+
+  document.getElementById("btn-theme").addEventListener("click", () => {
+    const cur = document.documentElement.getAttribute("data-theme");
+    document.documentElement.setAttribute("data-theme", cur === "dark" ? "light" : "dark");
+  });
+
+  function updateText() {
+    const dict = I18N[lang];
+    document.querySelectorAll("[data-i18n]").forEach(el => {
+      const k = el.getAttribute("data-i18n");
+      if (dict[k]) el.textContent = dict[k];
+    });
+  }
+
+  document.getElementById("btn-lang").addEventListener("click", () => {
+    lang = lang === "zh" ? "en" : "zh";
+    updateText();
+  });
+
+  loadShape("heart");
+  renderEasingCurve();
+  updateText();
+  setTimeout(playEasingComparison, 350);
+})();
+</script>
+</body>
+</html>

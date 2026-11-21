@@ -149,6 +149,46 @@ export const CURATED_WORK_METADATA = {
       "Run and remix it instantaneously inside OneHTML's isolated sandbox environment with bilingual English and Chinese controls.",
     ],
   },
+  "cellular-automata-sandbox": {
+    tags: ["#ClaudeArtifacts", "#Canvas", "#CellularAutomata", "#Simulation", "#GenerativeArt", "#SingleFileHTML"],
+    sentences: [
+      "Procedural Cellular Automata Sandbox is a zero-dependency single-file HTML5 simulation laboratory integrating Conway's Game of Life, Brian's Brain, and Langton's Ant.",
+      "Rendered at 60fps on native HTML5 Canvas 2D with optional toroidal edge wrapping and phosphor trail persistence, it visualizes complex emergent self-organization in real time.",
+      "Users can paint cell clusters with variable brush sizes, stamp gliders, switch across five high-contrast spectrum palettes, or spawn classic totems including the Gosper Glider Gun and Pulsar.",
+      "Built-in state serialization lets researchers and curious minds export or reload full grid snapshots as JSON or save crisp PNG captures with a single click.",
+      "It executes entirely offline inside OneHTML's isolated zero-trust sandbox with bilingual English and Chinese controls and zero external dependencies.",
+    ],
+  },
+  "web-audio-synth-studio": {
+    tags: ["#WebTool", "#WebAudio", "#AudioAPI", "#Canvas", "#GameDev", "#SingleFileHTML"],
+    sentences: [
+      "Web Audio Synth Studio is a self-contained retro chiptune synthesizer, wavetable laboratory, and step sequencer packed into a single HTML file.",
+      "Powered natively by the browser's Web Audio API, it combines square, sawtooth, triangle, and white-noise generators with a biquad low-pass filter, pitch slide, vibrato LFO, and an interactive ADSR envelope shaper.",
+      "A dual-canvas visualizer renders live time-domain oscilloscope waveforms, FFT frequency spectrum bars, and dynamic envelope curves while you compose on the 8/16-step matrix or keyboard.",
+      "Indie game developers can trigger classic 8-bit arcade sound presets, synthesize offline 16-bit PCM .wav audio files, or copy ready-to-paste vanilla JavaScript sound effect functions.",
+      "Everything runs client-side in OneHTML's isolated sandbox without external audio samples, libraries, or network requests.",
+    ],
+  },
+  "svg-path-bezier-editor": {
+    tags: ["#WebTool", "#SVG", "#CSS", "#DesignTools", "#Productivity", "#SingleFileHTML"],
+    sentences: [
+      "SVG Path & Cubic-Bezier Workbench is a visual vector path editor and CSS motion timing studio engineered inside one zero-dependency HTML document.",
+      "Designers and frontend developers can drag square anchor nodes and circular tangent handles on a precision snap grid to sculpt smooth cubic Bezier curves and geometric badges.",
+      "The inspector outputs clean, minified SVG <path d=\"...\"> coordinates with configurable decimal precision alongside downloadable standalone .svg vector files.",
+      "An integrated CSS cubic-bezier() easing debugger lets you manipulate control points and compare custom spring or ease-out motion against a linear reference track in real time.",
+      "Running locally inside OneHTML's secure sandbox, it delivers instant one-click code copying with zero external frameworks or telemetry.",
+    ],
+  },
+  "7ff64f93-a1a6-4f4c-9618-23763484e1f2": {
+    tags: ["#Canvas", "#ParticleSystem", "#GenerativeArt", "#Interactive", "#HTML5", "#SingleFileHTML"],
+    sentences: [
+      "Gravity (Particle Constellation) is an interactive HTML5 Canvas 2D particle physics and geometric constellation experiment created by community contributor 孙猛.",
+      "Seventy luminous neon nodes drift across a dark slate cosmos with semi-transparent motion trails, rebounding smoothly off viewport boundaries.",
+      "Whenever particles pass within a 110-pixel proximity threshold, the engine dynamically renders distance-weighted translucent vector filaments that weave an evolving star constellation.",
+      "Moving a mouse cursor or sliding a finger across the screen creates a localized 140-pixel gravitational attraction field that gently pulls nearby nodes toward your trajectory.",
+      "Archived byte-for-byte in OneHTML's isolated sandbox at just 2.2 KB, it demonstrates how pure vanilla JavaScript and Canvas 2D can deliver tactile visual art with zero dependencies.",
+    ],
+  },
 };
 
 export function getWorkEnrichedDetails(work) {

@@ -850,6 +850,47 @@ function resolveCoverUrl(work, siteOrigin) {
   return `${siteOrigin}/covers/${cover}`;
 }
 
+const CATEGORY_ROUTE_MAP = {
+  "/games": "game",
+  "/experiments": "visual",
+  "/tools": "tool",
+};
+
+const CATEGORY_SEO_CONFIG = {
+  game: {
+    path: "/games",
+    label: "Games",
+    title: "Single-File HTML5 Games & AI Browser Arcade — OneHTML",
+    description:
+      "Play instant single-file HTML5 games, retro WebGL 3D FPS, and AI-generated arcade classics directly in your browser. Zero installs, isolated sandbox runtime.",
+    heading: "Single-File HTML5 Games & Browser Arcade",
+  },
+  visual: {
+    path: "/experiments",
+    label: "Experiments",
+    title: "Interactive HTML5 Visual Experiments, WebGL Shaders & 3D Physics — OneHTML",
+    description:
+      "Explore interactive WebGL fluid simulations, Three.js 3D dioramas, falling-sand physics toys, and generative AI visual experiments in single-file HTML.",
+    heading: "Interactive Visual Experiments & Simulations",
+  },
+  tool: {
+    path: "/tools",
+    label: "Little tools",
+    title: "Zero-Dependency Single-File HTML5 Web Tools & Developer Utilities — OneHTML",
+    description:
+      "Use lightweight single-file HTML5 web tools, Markdown mindmaps, JSON & Regex workbenches, and CSS studios in an offline-capable zero-trust browser sandbox.",
+    heading: "Single-File HTML5 Web Tools & Developer Utilities",
+  },
+};
+
+function categoryPath(category) {
+  return CATEGORY_SEO_CONFIG[category]?.path || "/";
+}
+
+function categoryDisplayLabel(category) {
+  return CATEGORY_SEO_CONFIG[category]?.label || category || "app";
+}
+
 async function renderWorkDetail(work, env, siteOrigin) {
   const baseAsset = await env.ASSETS.fetch(new Request(`${siteOrigin}/index.html`));
   const baseHtml = await baseAsset.text();
@@ -903,24 +944,35 @@ async function renderWorkDetail(work, env, siteOrigin) {
 
   const otherWorks = (
     await env.DB.prepare(
-      "SELECT id, title, description, category, credit FROM works WHERE status='published' AND id != ? ORDER BY created_at DESC LIMIT 6",
+      "SELECT id, title, title_zh, description, description_zh, category, credit, cover FROM works WHERE status='published' AND id != ? ORDER BY CASE WHEN category = ? THEN 0 ELSE 1 END, created_at DESC LIMIT 6",
     )
-      .bind(work.id)
+      .bind(work.id, work.category)
       .all()
   ).results || [];
 
-  const otherLinks = otherWorks
-    .map(
-      (w) =>
-        `<li><a href="${siteOrigin}/work/${w.id}"><strong>${htmlEscape(w.title)}</strong></a> (${htmlEscape(w.category || "app")}) - ${htmlEscape(w.description || "")}</li>`,
-    )
-    .join("\n            ");
+  const relatedCards = otherWorks
+    .map((w) => {
+      const wCover = resolveCoverUrl(w, siteOrigin);
+      return `<a class="related-work-card" href="${siteOrigin}/work/${htmlEscape(w.id)}" data-work="${htmlEscape(w.id)}">
+          <div class="related-work-art"><img src="${htmlEscape(wCover)}" alt="${htmlEscape(w.title)}" loading="lazy" decoding="async"></div>
+          <div class="related-work-body">
+            <span class="related-work-category">${htmlEscape(categoryDisplayLabel(w.category))}</span>
+            <h4 class="related-work-title">${htmlEscape(w.title)}</h4>
+            <p class="related-work-desc">${htmlEscape(w.description || "")}</p>
+            <span class="related-work-credit">${htmlEscape(w.credit || "OneHTML Creator")}</span>
+          </div>
+        </a>`;
+    })
+    .join("\n        ");
+
+  const catPath = categoryPath(work.category);
+  const catLabel = categoryDisplayLabel(work.category);
 
   const showcaseHtml = `
     <section class="work-showcase container" id="work-showcase">
       <div class="work-showcase-header">
         <nav class="work-breadcrumb" aria-label="Breadcrumb">
-          <a href="${siteOrigin}/">← All Creations</a> / <span>${htmlEscape(work.category || "app")}</span>
+          <a href="${siteOrigin}/">← All Creations</a> / <a href="${siteOrigin}${catPath}">${htmlEscape(catLabel)}</a>
         </nav>
         <h1 class="work-title">${htmlEscape(work.title)}</h1>
         <div class="work-byline">
@@ -930,7 +982,7 @@ async function renderWorkDetail(work, env, siteOrigin) {
         </div>
       </div>
 
-      <div class="player-stage" id="player-stage" data-work-id="${htmlEscape(work.id)}">
+      <div class="player-stage" id="showcase-player-stage" data-work-id="${htmlEscape(work.id)}">
         <div class="work-art"><img src="${htmlEscape(coverUrl)}" alt="${htmlEscape(work.title)}" loading="lazy" decoding="async"></div>
         <div class="launch-overlay">
           <button class="button button-primary" data-launch="${htmlEscape(work.id)}">
@@ -985,14 +1037,15 @@ async function renderWorkDetail(work, env, siteOrigin) {
         </aside>
       </article>
       ${otherWorks.length ? `
-      <div class="related-works-prerender">
-        <noscript>
-          <h3>Explore More Single-File HTML Creations</h3>
-          <ul>
-            ${otherLinks}
-          </ul>
-        </noscript>
-      </div>` : ""}
+      <section class="related-works-section" aria-label="Related Creations">
+        <div class="related-works-header">
+          <h3>Related Creations</h3>
+          <a class="related-works-more" href="${siteOrigin}${catPath}">Explore all ${htmlEscape(catLabel)} →</a>
+        </div>
+        <div class="related-works-grid">
+        ${relatedCards}
+        </div>
+      </section>` : ""}
     </section>`;
 
   modified = modified.replace('<section class="hero container" id="hero"></section>', showcaseHtml);
@@ -1102,6 +1155,150 @@ async function renderHome(env, siteOrigin) {
   return new Response(modified, { status: 200, headers });
 }
 
+async function renderCategoryLanding(category, env, siteOrigin) {
+  const config = CATEGORY_SEO_CONFIG[category];
+  const baseAsset = await env.ASSETS.fetch(new Request(`${siteOrigin}/index.html`));
+  const baseHtml = await baseAsset.text();
+
+  const works = (
+    await env.DB.prepare(
+      `SELECT w.id, w.title, w.description, w.category, w.credit,
+      (SELECT COUNT(*) FROM votes v WHERE v.work_id=w.id) AS likes,
+      COALESCE((SELECT MAX(s.amount_cents) FROM sponsor_requests s WHERE s.work_id=w.id AND s.status='contacted'), 0) AS sponsor_amount_cents
+      FROM works w WHERE w.status='published' AND w.category=?
+      ORDER BY sponsor_amount_cents DESC, likes DESC, w.created_at ASC`,
+    )
+      .bind(category)
+      .all()
+  ).results || [];
+
+  const pageUrl = `${siteOrigin}${config.path}`;
+  const defaultOgImage = `${siteOrigin}/covers/default-og.png`;
+
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": config.title,
+    "url": pageUrl,
+    "description": config.description,
+    "mainEntity": {
+      "@type": "ItemList",
+      "numberOfItems": works.length,
+      "itemListElement": works.map((w, idx) => ({
+        "@type": "ListItem",
+        "position": idx + 1,
+        "name": w.title,
+        "url": `${siteOrigin}/work/${w.id}`,
+      })),
+    },
+  };
+
+  const seoTags = [
+    `<meta name="description" content="${htmlEscape(config.description)}" />`,
+    `<link rel="canonical" href="${htmlEscape(pageUrl)}" />`,
+    `<meta property="og:type" content="website" />`,
+    `<meta property="og:title" content="${htmlEscape(config.title)}" />`,
+    `<meta property="og:description" content="${htmlEscape(config.description)}" />`,
+    `<meta property="og:url" content="${htmlEscape(pageUrl)}" />`,
+    `<meta property="og:image" content="${htmlEscape(defaultOgImage)}" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:title" content="${htmlEscape(config.title)}" />`,
+    `<meta name="twitter:description" content="${htmlEscape(config.description)}" />`,
+    `<meta name="twitter:image" content="${htmlEscape(defaultOgImage)}" />`,
+    `<script type="application/ld+json">${JSON.stringify(schema)}<\/script>`,
+  ].join("\n    ");
+
+  let modified = baseHtml
+    .replace(/<title>[^<]*<\/title>/i, `<title>${htmlEscape(config.title)}<\/title>`)
+    .replace(/<meta\s+name=['"]description['"][^>]*\/?>/i, "");
+
+  modified = modified.replace("<head>", `<head>\n    ${seoTags}`);
+
+  const prerenderLinks = works
+    .map(
+      (w) =>
+        `<li><a href="${siteOrigin}/work/${htmlEscape(w.id)}"><strong>${htmlEscape(w.title)}</strong></a> by ${htmlEscape(w.credit || "OneHTML Creator")} — ${htmlEscape(w.description || "")}</li>`,
+    )
+    .join("\n        ");
+
+  const categoryPrerender = `
+    <section class="category-seo-intro container" id="category-seo-intro">
+      <h1>${htmlEscape(config.heading)}</h1>
+      <p>${htmlEscape(config.description)}</p>
+      <ul class="category-seo-list">
+        ${prerenderLinks}
+      </ul>
+    </section>`;
+
+  modified = modified.replace('<main id="main-content">', `<main id="main-content">\n    ${categoryPrerender}`);
+
+  const headers = new Headers(baseAsset.headers);
+  headers.set("Content-Type", "text/html; charset=utf-8");
+  headers.set(
+    "Content-Security-Policy",
+    mainCsp +
+      (env.SANDBOX_ORIGIN
+        ? `; frame-src 'self' ${env.SANDBOX_ORIGIN}`
+        : "; frame-src 'self'"),
+  );
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  headers.set("Cache-Control", "public, max-age=60, s-maxage=300");
+
+  return new Response(modified, { status: 200, headers });
+}
+
+async function renderLlmsTxt(env, siteOrigin) {
+  const works = (
+    await env.DB.prepare(
+      "SELECT id, title, description, category, credit FROM works WHERE status='published' ORDER BY CASE category WHEN 'game' THEN 0 WHEN 'visual' THEN 1 ELSE 2 END, created_at ASC",
+    ).all()
+  ).results || [];
+
+  const games = works.filter((w) => w.category === "game");
+  const experiments = works.filter((w) => w.category === "visual");
+  const tools = works.filter((w) => w.category === "tool");
+
+  const formatWorkLine = (w) =>
+    `- [${w.title}](${siteOrigin}/work/${w.id}): ${w.description || "Single-file HTML5 creation"} (by ${w.credit || "OneHTML Creator"})`;
+
+  const lines = [
+    "# OneHTML",
+    "",
+    "> OneHTML is an online platform and zero-trust dual-domain sandbox for running, hosting, and sharing single-file HTML5 games, interactive visual experiments, web tools, and AI-generated web artifacts (Claude Artifacts, GPT web apps).",
+    "",
+    "## Core Entrances",
+    "",
+    `- [OneHTML Home](${siteOrigin}/): Discover all curated single-file HTML5 creations and community submissions.`,
+    `- [Online HTML Preview & AI Artifact Sandbox Runner](${siteOrigin}/preview): Paste, edit, and run single-file HTML5 and AI artifacts in an isolated sandbox.`,
+    `- [Single-File HTML5 Games](${siteOrigin}/games): Instant browser arcade games, 3D WebGL FPS, and retro classics.`,
+    `- [Interactive Visual Experiments](${siteOrigin}/experiments): WebGL fluid shaders, Three.js 3D scenes, physics simulations, and generative art.`,
+    `- [Single-File HTML5 Web Tools](${siteOrigin}/tools): Zero-dependency developer utilities, Markdown mindmaps, JSON/Regex labs, and CSS studios.`,
+    "",
+    "## Curated Games (`/games`)",
+    "",
+    ...games.map(formatWorkLine),
+    "",
+    "## Interactive Experiments (`/experiments`)",
+    "",
+    ...experiments.map(formatWorkLine),
+    "",
+    "## Web Tools & Utilities (`/tools`)",
+    "",
+    ...tools.map(formatWorkLine),
+    "",
+  ];
+
+  return new Response(lines.join("\n"), {
+    status: 200,
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "public, max-age=3600, s-maxage=86400",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}
+
 async function renderPreview(env, siteOrigin) {
   const baseAsset = await env.ASSETS.fetch(new Request(`${siteOrigin}/index.html`));
   const baseHtml = await baseAsset.text();
@@ -1185,6 +1382,9 @@ async function renderSitemap(env, siteOrigin) {
   const urls = [
     `  <url>\n    <loc>${xmlEscape(siteOrigin)}/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>`,
     `  <url>\n    <loc>${xmlEscape(siteOrigin)}/preview</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.9</priority>\n  </url>`,
+    `  <url>\n    <loc>${xmlEscape(siteOrigin)}/games</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.9</priority>\n  </url>`,
+    `  <url>\n    <loc>${xmlEscape(siteOrigin)}/experiments</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.9</priority>\n  </url>`,
+    `  <url>\n    <loc>${xmlEscape(siteOrigin)}/tools</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.9</priority>\n  </url>`,
     ...works.map((w) => {
       let date;
       try {
@@ -1213,8 +1413,11 @@ export default {
     try {
       const url = new URL(request.url);
       const siteOrigin = env.SITE_ORIGIN || url.origin;
+      const isSandboxRequest =
+        env.DEMO_ONLY === "true" ||
+        Boolean(env.SANDBOX_ORIGIN && url.origin === env.SANDBOX_ORIGIN);
 
-      if (env.DEMO_ONLY === "true") {
+      if (isSandboxRequest) {
         if (url.pathname === "/preview" && ["GET", "HEAD"].includes(request.method)) {
           const allowedAncestors = [
             env.SITE_ORIGIN,
@@ -1274,22 +1477,6 @@ export default {
         return demoResponse(html, payload.site);
       }
 
-      if (env.SANDBOX_ORIGIN && url.origin === env.SANDBOX_ORIGIN) {
-        if (url.pathname === "/preview" && ["GET", "HEAD"].includes(request.method)) {
-          const allowedAncestors = [
-            env.SITE_ORIGIN,
-            "https://onehtmlapp.com",
-            "https://www.onehtmlapp.com",
-            "https://onehtml.onehtml.workers.dev",
-            "http://127.0.0.1:4391",
-            "http://localhost:4391",
-            "http://43.161.242.122:4391",
-          ].filter(Boolean);
-          const frameAncestorsOrigin = Array.from(new Set(allowedAncestors)).join(" ");
-          return demoResponse(previewRunnerHtml(env.SITE_ORIGIN || siteOrigin), frameAncestorsOrigin);
-        }
-      }
-
       if (url.pathname.startsWith("/api/")) return await api(request, env, url);
       if (url.pathname.startsWith("/play/"))
         return new Response("Open this work from its isolated player.", {
@@ -1319,12 +1506,21 @@ export default {
         });
       }
 
+      if (url.pathname === "/llms.txt" && ["GET", "HEAD"].includes(request.method)) {
+        return await renderLlmsTxt(env, siteOrigin);
+      }
+
       if (url.pathname === "/sitemap.xml" && ["GET", "HEAD"].includes(request.method)) {
         return await renderSitemap(env, siteOrigin);
       }
 
       if ((url.pathname === "/" || url.pathname === "/index.html") && ["GET", "HEAD"].includes(request.method)) {
         return await renderHome(env, siteOrigin);
+      }
+
+      const mappedCategory = CATEGORY_ROUTE_MAP[url.pathname];
+      if (mappedCategory && ["GET", "HEAD"].includes(request.method)) {
+        return await renderCategoryLanding(mappedCategory, env, siteOrigin);
       }
 
       if (url.pathname === "/preview" && ["GET", "HEAD"].includes(request.method)) {

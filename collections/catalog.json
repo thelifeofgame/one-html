@@ -312,5 +312,84 @@
         "source_note": "Zero-dependency single-file HTML5 utility built for OneHTML Tools collection."
       }
     ]
+  },
+  {
+    "id": "cellular-automata-sandbox",
+    "title": "Procedural Cellular Automata Sandbox",
+    "title_zh": "多规则细胞自动机交互沙盒",
+    "description": "An interactive multi-rule cellular automata laboratory integrating Conway's Game of Life (B3/S23), Brian's Brain and Langton's Ant. Features brush painting, spectrum palettes, speed sliders, classic totem presets, spacebar pause and JSON/PNG state export.",
+    "description_zh": "集成康威生命游戏（Conway's Game of Life）、布莱恩脑（Brian's Brain）与兰顿蚂蚁（Langton's Ant）的多规则细胞自动机实验室。支持画笔涂抹、滑翔机印章、光谱调色盘、速率调节、经典图腾预设、空格键暂停与全网格 JSON/PNG 状态导出。",
+    "category": "visual",
+    "credit": "Claude Artifacts Community",
+    "license": "MIT",
+    "source_url": "https://github.com/thelifeofgame/one-html",
+    "cover": "/covers/cellular-automata-sandbox.png",
+    "versions": [
+      {
+        "file": "cellular-automata-sandbox.original.html",
+        "sha256": "62008bb8d027031ac9e432674bbe7a074f34244cd06300109ec2774a9e51c741",
+        "license": "MIT",
+        "source_note": "Zero-dependency single-file HTML5 cellular automata simulation sandbox."
+      }
+    ]
+  },
+  {
+    "id": "web-audio-synth-studio",
+    "title": "Web Audio Synth Studio",
+    "title_zh": "复古芯片音乐与波表合成器工作台",
+    "description": "A zero-dependency retro chiptune synthesizer and 8/16-step sequencer built on the Web Audio API. Features a real-time Canvas oscilloscope, square/sawtooth/triangle/noise oscillators, ADSR envelope shaping, .wav audio export, and instant JavaScript game SFX code generation.",
+    "description_zh": "基于纯原生 Web Audio API 与 Canvas 实时示波器打造的复古芯片音乐与波表合成器。支持方波/锯齿波/三角波/白噪声、ADSR 包络整形、8/16 步进音序器矩阵、一键导出 16-bit .wav 音频以及自动生成零依赖单文件游戏 JS 音效函数。",
+    "category": "tool",
+    "credit": "OneHTML Lab",
+    "license": "MIT",
+    "source_url": "https://github.com/thelifeofgame/one-html",
+    "cover": "/covers/web-audio-synth-studio.png",
+    "versions": [
+      {
+        "file": "web-audio-synth-studio.original.html",
+        "sha256": "14fdace6ba3fa9018dd91f3a6a4a11d1a42abb98fe83d08d11cc321613de44f7",
+        "license": "MIT",
+        "source_note": "Zero-dependency single-file Web Audio API synthesizer and game SFX generator built for OneHTML Tools collection."
+      }
+    ]
+  },
+  {
+    "id": "svg-path-bezier-editor",
+    "title": "SVG Path & Cubic-Bezier Workbench",
+    "title_zh": "SVG 路径与贝塞尔曲线可视化工作台",
+    "description": "Visually sculpt cubic Bezier vector paths by dragging anchor nodes and tangent control handles. Generates clean, minified SVG <path d=\"...\"> markup alongside an interactive CSS cubic-bezier() easing curve comparator with one-click code copy.",
+    "description_zh": "拖拽矢量锚点与切线控制柄实时塑形三次贝塞尔曲线，同步生成精简的 SVG <path d=\"...\"> 路径代码，并内置 CSS cubic-bezier() 缓动曲线实时动画对比预览与一键代码复制，纯单文件零外部依赖。",
+    "category": "tool",
+    "credit": "OneHTML Lab",
+    "license": "MIT",
+    "source_url": "https://github.com/thelifeofgame/one-html",
+    "cover": "/covers/svg-path-bezier-editor.png",
+    "versions": [
+      {
+        "file": "svg-path-bezier-editor.original.html",
+        "sha256": "915c1aa3e23792ca5ad3e82504e910fe5d5365775b20b5fde8bce29356bc58a7",
+        "license": "MIT",
+        "source_note": "Zero-dependency single-file SVG path and CSS cubic-bezier visual workbench built for OneHTML Tools collection."
+      }
+    ]
+  },
+  {
+    "id": "7ff64f93-a1a6-4f4c-9618-23763484e1f2",
+    "title": "Gravity — Interactive Particle Constellation",
+    "title_zh": "Gravity · 星轨引力粒子星座",
+    "description": "An interactive HTML5 Canvas particle constellation experiment where glowing multi-colored nodes drift across deep space, form dynamic geometric mesh connections within proximity thresholds, and gravitate smoothly toward mouse or touch trajectories.",
+    "description_zh": "轻盈迷人的 HTML5 Canvas 2D 引力粒子星座交互实验。70 颗霓虹星尘在深空画布中自由漫游，在临界距离内自动编织动态几何连线网格，并随鼠标或触控轨迹产生柔顺的引力聚拢响应。",
+    "category": "visual",
+    "credit": "孙猛",
+    "preserve_author": true,
+    "cover": "/covers/gravity.png",
+    "source_url": "",
+    "versions": [
+      {
+        "file": "gravity.original.html",
+        "sha256": "b787f1a3ef0887a869e472e0d8dd79f4d9eedc6ed542772723c5f8b4cdc773e5",
+        "source_note": "Creator-submitted standalone HTML5 Canvas particle constellation experiment by 孙猛, preserved byte for byte."
+      }
+    ]
   }
 ]
